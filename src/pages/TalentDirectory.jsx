@@ -5,6 +5,7 @@ import { people } from '../services/api'
 import { usePaged, useDebounce } from '../hooks/usePaged'
 import { LEVELS, SUBJECTS } from '../lib/format'
 import Icon from '../components/Icon'
+import Select from '../components/Select'
 import { LoadMore, PageHead, Status } from '../components/ui'
 import TalentCard from '../components/TalentCard'
 
@@ -27,8 +28,8 @@ export default function TalentDirectory() {
     </div>
     <div className="filter-bar">
       <input className="input max-w-xs flex-1" type="search" placeholder={companies ? 'Nombre, sector o ciudad' : 'Nombre, centro o palabra del perfil'} aria-label={companies ? 'Buscar empresas' : 'Buscar docentes'} value={q} onChange={e => setQ(e.target.value)} />
-      {!companies && <select className="input w-auto" aria-label="Asignatura" value={subject} onChange={e => setSubject(e.target.value)}><option value="">Todas las asignaturas</option>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>}
-      {!companies && <select className="input w-auto" aria-label="Etapa" value={level} onChange={e => setLevel(e.target.value)}><option value="">Todas las etapas</option>{LEVELS.map(s => <option key={s}>{s}</option>)}</select>}
+      {!companies && <Select className="w-auto" ariaLabel="Asignatura" value={subject} onChange={setSubject} options={[['', 'Todas las asignaturas'], ...SUBJECTS]} />}
+      {!companies && <Select className="w-auto" ariaLabel="Etapa" value={level} onChange={setLevel} options={[['', 'Todas las etapas'], ...LEVELS]} />}
     </div>
     <Status loading={list.loading} error={list.error} count={list.items.length} onRetry={list.reload} empty={filtered
       ? { icon: 'search', title: companies ? 'Ninguna empresa coincide' : 'Ningún docente coincide', text: 'Prueba a quitar algún filtro.', action: { label: 'Limpiar filtros', onClick: () => { setQ(''); setSubject(''); setLevel('') } } }

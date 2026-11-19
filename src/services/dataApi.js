@@ -3,6 +3,7 @@ import { isHttpUrl, isUuid, normalizedSearch, searchTerm, validateFile } from '.
 export const PROFILE = 'id,role,full_name,subject_area,bio,avatar_url,center,city,education_levels,website,social,created_at'
 const PROJ = 'id,owner_id,title,description,is_public,tags,created_at,owner:profiles!owner_id(id,full_name,subject_area,avatar_url),project_members(user_id,status)'
 const RESOURCE = '*,owner:profiles!owner_id(id,full_name,avatar_url)'
+const NOTE = 'id,type,preview,count,created_at,read_at,project_id,actor_id,actor:profiles!actor_id(id,full_name,role,avatar_url),project:projects!project_id(id,title)'
 const ok = result => { if (result.error) throw result.error; return result.data }
 const requireId = id => { if (!isUuid(id)) throw new Error('La dirección no es válida.'); return id }
 // Accent-insensitive search uses the generated `search` column (migration 005). Until it is applied,
@@ -186,5 +187,12 @@ export function createApi(sb) {
     const value = result => result.status === 'fulfilled' ? result.value : null
     return { projects: value(p), resources: value(r), teachers: value(d) }
   }
-  return { projects, resources, people, messages, avatars, stats }
+  // Created by database triggers (migration 006); the client only reads and marks them.
+  const notifications = {
+    list: async ({ from = 0, to = 19 } = {}) => ok(await sb.from('notifications').select(NOTE).order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, to)) || [],
+    unread: async () => { const result = await sb.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null); ok(result); return result.count || 0 },
+    read: async id => ok(await sb.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', requireId(id)).is('read_at', null)),
+    readAll: async () => ok(await sb.from('notifications').update({ read_at: new Date().toISOString() }).is('read_at', null)),
+  }
+  return { projects, resources, people, messages, avatars, stats, notifications }
 }

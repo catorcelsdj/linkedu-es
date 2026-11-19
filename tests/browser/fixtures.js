@@ -13,7 +13,11 @@ export async function mockBackend(page, { signedIn = true, role = 'docente' } = 
     { id: '30000000-0000-4000-8000-000000000001', title: 'El aula como laboratorio', description: 'Una guía práctica para despertar la curiosidad científica con materiales cotidianos.', subject_area: 'Ciencias', education_level: 'ESO', resource_type: 'external_link', link_url: 'https://example.org/recurso', owner_id: ids.me, owner: me, created_at: timestamp, tags: ['ABP', 'Docentes'] },
     { id: '30000000-0000-4000-8000-000000000002', title: 'Ideas que se programan', description: 'Retos de pensamiento computacional para crear en equipo.', subject_area: 'Tecnología', education_level: 'Primaria', resource_type: 'file', file_path: `${ids.ana}/retos.pdf`, file_size: 131072, owner_id: ids.ana, owner: ana, created_at: timestamp, tags: ['Scratch'] },
   ]
-  const state = { me, people: [me, ana, pablo, company], projects, resources, requests: [], errors: {}, delays: {}, threads: {}, members: null, topics: [] }
+  const state = { me, people: [me, ana, pablo, company], projects, resources, requests: [], errors: {}, delays: {}, threads: {}, members: null, topics: [], notifications: [
+    { id: '70000000-0000-4000-8000-000000000001', type: 'solicitud', actor_id: ids.ana, project_id: ids.project, preview: '', count: 1, created_at: '2026-11-18T16:00:00+00:00', read_at: null, actor: ana, project: { id: ids.project, title: projects[0].title } },
+    { id: '70000000-0000-4000-8000-000000000002', type: 'mensaje', actor_id: ids.pablo, project_id: null, preview: 'Tengo una idea para el próximo trimestre.', count: 2, created_at: '2026-11-18T15:30:00+00:00', read_at: null, actor: pablo, project: null },
+    { id: '70000000-0000-4000-8000-000000000003', type: 'publicacion', actor_id: ids.ana, project_id: ids.project, preview: '¡Ya tenemos las primeras semillas!', count: 1, created_at: '2026-11-17T10:00:00+00:00', read_at: '2026-11-17T12:00:00+00:00', actor: ana, project: { id: ids.project, title: projects[0].title } },
+  ] }
   const token = `${btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))}.${btoa(JSON.stringify({ sub: ids.me, role: 'authenticated', exp: 4102444800 }))}.test-signature`
   if (signedIn) await page.addInitScript(({ me, token }) => {
     localStorage.setItem('sb-linkedu-tests-auth-token', JSON.stringify({ access_token: token, refresh_token: 'test-refresh', token_type: 'bearer', expires_at: 4102444800, expires_in: 3600, user: { id: me.id, email: 'lucia@example.org', app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '2026-01-01T00:00:00Z' } }))
@@ -42,6 +46,15 @@ export async function mockBackend(page, { signedIn = true, role = 'docente' } = 
       if (table === 'logout') return route.fulfill({ status: 204 })
       if (table === 'user') return route.fulfill({ json: { id: ids.me, email: 'lucia@example.org' } })
       return route.fulfill({ json: { user: { id: ids.me }, session: null } })
+    }
+    if (table === 'notifications') {
+      if (method === 'HEAD') return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range', 'content-range': `0-0/${state.notifications.filter(n => !n.read_at).length}` } })
+      if (method === 'PATCH') {
+        const id = url.searchParams.get('id')?.replace('eq.', '')
+        for (const n of state.notifications) if ((!id || n.id === id) && !n.read_at) n.read_at = request.postDataJSON().read_at
+        return route.fulfill({ status: 204 })
+      }
+      return result(state.notifications)
     }
     if (method === 'HEAD') return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range', 'content-range': `0-0/${table === 'projects' ? 12 : table === 'resources' ? 48 : table === 'profiles' ? 36 : 2}` } })
     if (table === 'profiles') {

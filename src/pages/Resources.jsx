@@ -8,6 +8,7 @@ import { FILE_EXT, LEVELS, MAX_FILE, SUBJECTS, fileSize, fullDate, isHttpUrl, ms
 import { useConfirm } from '../context/ConfirmContext'
 import { openResource } from '../lib/openResource'
 import Icon from '../components/Icon'
+import Select from '../components/Select'
 import { FormError, LoadMore, LoadingState, PageHead, Status } from '../components/ui'
 import ResourceCard, { resourceLink } from '../components/ResourceCard'
 import Modal from '../components/Modal'
@@ -49,8 +50,8 @@ function ResourceForm({ resource, onClose, onDone }) {
       <label className="lbl" htmlFor="rt">Título</label><input id="rt" className="input" maxLength={120} value={f.title} onChange={set('title')} autoFocus />
       <label className="lbl" htmlFor="rd">Descripción</label><textarea id="rd" rows={3} maxLength={500} className="input" placeholder="Para qué curso sirve y cómo usarlo" value={f.description} onChange={set('description')} />
       <div className="grid grid-cols-2 gap-3">
-        <div><label className="lbl" htmlFor="rs">Asignatura</label><select id="rs" className="input" value={f.subject_area} onChange={set('subject_area')}><option value="">Elige una</option>{SUBJECTS.map(s => <option key={s}>{s}</option>)}{f.subject_area && !SUBJECTS.includes(f.subject_area) && <option>{f.subject_area}</option>}</select></div>
-        <div><label className="lbl" htmlFor="rl">Etapa</label><select id="rl" className="input" value={f.education_level} onChange={set('education_level')}><option value="">Cualquiera</option>{LEVELS.map(s => <option key={s}>{s}</option>)}</select></div>
+        <div><label className="lbl" htmlFor="rs">Asignatura</label><Select id="rs" value={f.subject_area} onChange={v => setF({ ...f, subject_area: v })} options={[['', 'Elige una'], ...SUBJECTS, ...(f.subject_area && !SUBJECTS.includes(f.subject_area) ? [f.subject_area] : [])]} /></div>
+        <div><label className="lbl" htmlFor="rl">Etapa</label><Select id="rl" value={f.education_level} onChange={v => setF({ ...f, education_level: v })} options={[['', 'Cualquiera'], ...LEVELS]} /></div>
       </div>
       {kind === 'link'
         ? (<><label className="lbl" htmlFor="ru">Enlace</label><input id="ru" className="input" placeholder="https://" value={f.link_url} onChange={set('link_url')} /></>)
@@ -128,8 +129,8 @@ export default function Resources() {
     </PageHead>
     <div className="filter-bar">
       <input className="input max-w-xs flex-1" type="search" placeholder="Buscar por título o descripción" aria-label="Buscar recursos" value={q} onChange={e => setQ(e.target.value)} />
-      <select className="input w-auto" aria-label="Asignatura" value={subject} onChange={e => setSubject(e.target.value)}><option value="">Todas las asignaturas</option>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
-      <select className="input w-auto" aria-label="Etapa" value={level} onChange={e => setLevel(e.target.value)}><option value="">Todas las etapas</option>{LEVELS.map(s => <option key={s}>{s}</option>)}</select>
+      <Select className="w-auto" ariaLabel="Asignatura" value={subject} onChange={setSubject} options={[['', 'Todas las asignaturas'], ...SUBJECTS]} />
+      <Select className="w-auto" ariaLabel="Etapa" value={level} onChange={setLevel} options={[['', 'Todas las etapas'], ...LEVELS]} />
     </div>
     <TagFilter value={tags} onChange={setTags} />
     <Status loading={list.loading} error={list.error} count={list.items.length} empty={empty} onRetry={list.reload} />

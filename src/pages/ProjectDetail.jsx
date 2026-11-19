@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { projects } from '../services/api'
@@ -14,9 +14,12 @@ import ProjectForm from '../components/ProjectForm'
 export default function ProjectDetail() {
   const { id } = useParams(), { profile: me } = useAuth(), toast = useToast(), nav = useNavigate()
   const [p, setP] = useState(undefined), [ms, setMs] = useState([]), [posts, setPosts] = useState([])
-  const [tab, setTab] = useState('actividad'), [text, setText] = useState(''), [busy, setBusy] = useState(false)
+  const [sp] = useSearchParams()
+  // Notifications about requests and new members open the team tab directly.
+  const [tab, setTab] = useState(sp.get('tab') === 'personas' ? 'personas' : 'actividad'), [text, setText] = useState(''), [busy, setBusy] = useState(false)
   const [error, setError] = useState(''), [invite, setInvite] = useState(null), [editing, setEditing] = useState(false)
   const version = useRef(0), locked = useRef(false), confirm = useConfirm()
+  useEffect(() => { if (sp.get('tab') === 'personas') setTab('personas') }, [sp])
   const invalidate = useCallback(() => { version.current++ }, [])
 
   const load = useCallback(async () => {

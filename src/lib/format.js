@@ -12,6 +12,19 @@ export const SOCIALS = [['linkedin', 'LinkedIn'], ['github', 'GitHub'], ['x', 'X
 export { isHttpUrl } from './validation.js'
 export const UNREAD_EVENT = 'linkedu:unread'
 export const PROJECT_EVENT = 'linkedu:project'
+// Where each notification leads and how it reads.
+export function notificationView(n) {
+  const who = n.actor?.full_name || 'Alguien', project = n.project?.title ? `«${n.project.title}»` : 'un proyecto'
+  const pid = n.project_id || n.project?.id
+  switch (n.type) {
+    case 'mensaje': return { icon: 'chat', to: `/mensajes/${n.actor_id || n.actor?.id}`, who, text: n.count > 1 ? `te ha enviado ${n.count} mensajes` : 'te ha enviado un mensaje', preview: n.preview }
+    case 'solicitud': return { icon: 'people', to: `/proyectos/${pid}?tab=personas`, who, text: `quiere unirse a ${project}` }
+    case 'union': return { icon: 'people', to: `/proyectos/${pid}?tab=personas`, who, text: `se ha unido a ${project}` }
+    case 'aceptado': return { icon: 'check', to: `/proyectos/${pid}`, who, text: `te ha aceptado en ${project}` }
+    case 'publicacion': return { icon: 'projects', to: `/proyectos/${pid}`, who, text: `ha publicado en ${project}`, preview: n.preview }
+    default: return { icon: 'bell', to: '/', who, text: 'tiene novedades para ti' }
+  }
+}
 export const ROLE_LABEL = { docente: 'Docente', alumno: 'Alumno', empresa: 'Empresa' }
 
 const rtf = new Intl.RelativeTimeFormat('es', { numeric: 'auto' })
@@ -43,7 +56,7 @@ const MAP = [
 ]
 export const msgError = e => {
   const m = e?.message || String(e || '')
-  if (['42703', '42P01', 'PGRST202', 'PGRST204', 'PGRST205'].includes(e?.code) || /schema cache|column .+ does not exist/.test(m)) return 'La base de datos necesita actualizarse. Aplica las migraciones 001 a 005 indicadas en el README y vuelve a intentarlo.'
+  if (['42703', '42P01', 'PGRST202', 'PGRST204', 'PGRST205'].includes(e?.code) || /schema cache|column .+ does not exist/.test(m)) return 'La base de datos necesita actualizarse. Aplica las migraciones 001 a 006 indicadas en el README y vuelve a intentarlo.'
   if (e?.code === 'PGRST116') return 'El elemento ya no está disponible o no tienes permiso para modificarlo.'
   if (e?.code === '42501') return 'No tienes permiso para hacer esto. Si acabas de actualizar la app, comprueba las migraciones.'
   if (e?.code === '23505') return 'Ese elemento ya existe o la solicitud ya se ha enviado.'

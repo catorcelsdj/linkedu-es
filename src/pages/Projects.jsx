@@ -7,6 +7,7 @@ import { usePaged, useDebounce } from '../hooks/usePaged'
 import { msgError } from '../lib/format'
 import { normalizedSearch } from '../lib/validation'
 import Icon from '../components/Icon'
+import Select from '../components/Select'
 import { FormError, LoadMore, PageHead, Status } from '../components/ui'
 import ProjectCard from '../components/ProjectCard'
 import Modal from '../components/Modal'
@@ -58,7 +59,7 @@ export default function Projects() {
     </PageHead>
     <div className="filter-bar">
       <input className="input max-w-xs flex-1" type="search" placeholder="Buscar por título o descripción" aria-label="Buscar proyectos" value={q} onChange={e => setQ(e.target.value)} />
-      {me.role !== 'empresa' && <select className="input w-auto" aria-label="Mostrar" value={scope} onChange={e => setScope(e.target.value)}><option value="all">Todos los visibles</option><option value="mine">Solo en los que participo</option></select>}
+      {me.role !== 'empresa' && <Select className="w-auto" ariaLabel="Mostrar" value={scope} onChange={setScope} options={[['all', 'Todos los visibles'], ['mine', 'Solo en los que participo']]} />}
     </div>
     <TagFilter value={tags} onChange={setTags} />
     <Status loading={list.loading} error={list.error} count={list.items.length} empty={empty} onRetry={list.reload} />
