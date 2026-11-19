@@ -150,3 +150,20 @@
 .dark { --toast-error: #ffb0bf; }
 canvas[aria-hidden] { opacity: .35; }
 .theme-changing *, .theme-changing *::before, .theme-changing *::after { transition: none !important; }
+
+/* Theme switch: sun in light mode, moon in dark mode. */
+.theme-track { position: relative; flex: none; width: 44px; height: 24px; border-radius: 999px; background: #cfdcd6; box-shadow: inset 0 1px 2px #0d2b2420; transition: background .3s; }
+.theme-track.is-dark { background: #1f4a52; box-shadow: inset 0 1px 2px #0006, 0 0 14px -2px #74dfbf70; }
+.theme-knob { position: absolute; top: 2px; left: 2px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #fff; color: #b0650a; box-shadow: 0 1px 3px #0d2b2440; transition: transform .35s cubic-bezier(.5,1.6,.4,1), background .3s, color .3s; }
+.theme-track.is-dark .theme-knob { transform: translateX(20px); background: #0e1f25; color: #a8f0d8; }
+.theme-glyph { animation: glyph-in .45s cubic-bezier(.5,1.6,.4,1); }
+@keyframes glyph-in { from { opacity: 0; transform: rotate(-90deg) scale(.4); } to { opacity: 1; transform: none; } }
+
+/* Signature effect: circular reveal of the new theme from the switch (see ThemeContext). */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-new(root) { z-index: 2; }
+
+/* Lists keep their previous results, slightly dimmed, while a new filter loads. */
+.results { transition: opacity .2s; }
+.results[aria-busy="true"] { opacity: .55; }
+#contenido:focus { outline: none; }

@@ -7,6 +7,8 @@ import { UNREAD_EVENT, msgError, timeAgo } from '../lib/format'
 import { isUuid, mergeMessages } from '../lib/validation'
 import { Avatar, EmptyState, FormError, LoadingState, PageHead } from '../components/ui'
 import Icon from '../components/Icon'
+// With a physical keyboard Enter sends and Shift+Enter adds a line; on touch screens Enter keeps adding lines.
+const enterSends = typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches
 function Live({ status }) {
   return <span className="flex items-center gap-1.5 text-xs text-muted" role="status"><span className={`h-1.5 w-1.5 rounded-full ${status === 'live' ? 'bg-mint' : 'bg-amber-500'}`} />{status === 'live' ? 'En directo' : 'Actualización periódica'}</span>
 }
@@ -78,7 +80,7 @@ function Conversation({ other, me, onChange }) {
         {!thread.length && <EmptyState compact icon="chat" title="Todo empieza con un hola" text="Preséntate y cuenta qué te gustaría hacer en equipo." />}
         {thread.map(row => <div key={row.id} className={`flex ${row.sender_id === me.id ? 'justify-end' : ''}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${row.sender_id === me.id ? 'rounded-br-sm bg-[#176b57] text-white' : 'rounded-bl-sm border border-line bg-slate-50'}`}><p className="whitespace-pre-wrap break-words">{row.content}</p><p className={`mt-2 text-[10px] ${row.sender_id === me.id ? 'text-[#c7e7da]' : 'text-muted'}`}>{timeAgo(row.created_at)}{row.sender_id === me.id && row.read_at && ' · Leído'}</p></div></div>)}<div ref={end} />
       </div>
-      {peer && <form onSubmit={send} className="border-t border-line p-4"><label htmlFor="msg" className="sr-only">Mensaje</label><textarea ref={box} id="msg" rows={2} maxLength={2000} className="input" readOnly={busy} aria-busy={busy} value={text} onChange={event => setText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !event.nativeEvent.isComposing) send(event) }} placeholder="Comparte una idea…" /><FormError>{sendError}</FormError><div className="mt-3 flex items-center justify-between gap-2"><span className="text-[10px] text-muted">Ctrl / ⌘ + Intro · {text.length}/2000</span><button className="btn" disabled={busy || !text.trim()}>{busy ? 'Enviando…' : 'Enviar'}<Icon name="arrow" size={16} /></button></div></form>}
+      {peer && <form onSubmit={send} className="border-t border-line p-4"><label htmlFor="msg" className="sr-only">Mensaje</label><textarea ref={box} id="msg" rows={2} maxLength={2000} className="input" readOnly={busy} aria-busy={busy} value={text} onChange={event => setText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && (event.metaKey || event.ctrlKey || enterSends)) send(event) }} placeholder="Comparte una idea…" /><FormError>{sendError}</FormError><div className="mt-3 flex items-center justify-between gap-2"><span className="text-[10px] text-muted">{enterSends ? 'Intro para enviar · Mayús + Intro, nueva línea' : 'Ctrl / ⌘ + Intro para enviar'} · {text.length}/2000</span><button className="btn" disabled={busy || !text.trim()}>{busy ? 'Enviando…' : 'Enviar'}<Icon name="arrow" size={16} /></button></div></form>}
     </>}
   </section>
 }

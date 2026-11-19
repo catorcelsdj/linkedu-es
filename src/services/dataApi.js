@@ -1,14 +1,20 @@
-import { isHttpUrl, isUuid, searchTerm, validateFile } from '../lib/validation.js'
+import { isHttpUrl, isUuid, normalizedSearch, searchTerm, validateFile } from '../lib/validation.js'
 
 export const PROFILE = 'id,role,full_name,subject_area,bio,avatar_url,center,city,education_levels,website,social,created_at'
 const PROJ = 'id,owner_id,title,description,is_public,tags,created_at,owner:profiles!owner_id(id,full_name,subject_area,avatar_url),project_members(user_id,status)'
 const RESOURCE = '*,owner:profiles!owner_id(id,full_name,avatar_url)'
 const ok = result => { if (result.error) throw result.error; return result.data }
 const requireId = id => { if (!isUuid(id)) throw new Error('La dirección no es válida.'); return id }
-const match = (query, q, columns) => {
+// Accent-insensitive search uses the generated `search` column (migration 005). Until it is applied,
+// the same query falls back to the previous accent-sensitive filter instead of failing.
+const searchable = async (build, q, columns) => {
   const term = searchTerm(q)
-  return term ? query.or(columns.map(column => `${column}.ilike.%${term}%`).join(',')) : query
+  if (!term) return ok(await build(query => query))
+  const result = await build(query => query.ilike('search', `%${normalizedSearch(term)}%`))
+  if (result.error?.code !== '42703') return ok(result)
+  return ok(await build(query => query.or(columns.map(column => `${column}.ilike.%${term}%`).join(','))))
 }
+const tagList = tags => { if (!Array.isArray(tags) || tags.length > 8) throw new Error('Elige un máximo de 8 etiquetas.'); return tags }
 const text = (value, min, max, label) => {
   const v = String(value || '').trim()
   if (v.length < min || v.length > max) throw new Error(`${label}: usa entre ${min} y ${max} caracteres.`)
@@ -19,10 +25,13 @@ const text = (value, min, max, label) => {
 export function createApi(sb) {
   const projects = {
     list: async ({ q, tags, owner, from = 0, to = 11 } = {}) => {
-      let query = match(sb.from('projects').select(PROJ), q, ['title', 'description'])
-      if (tags?.length) query = query.contains('tags', tags)
-      if (owner) query = query.eq('owner_id', requireId(owner))
-      return ok(await query.order('created_at', { ascending: false }).order('id').range(from, to)) || []
+      if (owner) requireId(owner)
+      return await searchable(filter => {
+        let query = filter(sb.from('projects').select(PROJ))
+        if (tags?.length) query = query.contains('tags', tags)
+        if (owner) query = query.eq('owner_id', owner)
+        return query.order('created_at', { ascending: false }).order('id').range(from, to)
+      }, q, ['title', 'description']) || []
     },
     mine: async uid => {
       requireId(uid)
@@ -37,6 +46,15 @@ export function createApi(sb) {
         project_public: !!p.is_public, project_tags: p.tags || [],
       }))
       return { id }
+    },
+    update: async (id, p) => {
+      const patch = { title: text(p.title, 4, 100, 'Título'), description: text(p.description, 0, 600, 'Descripción'), is_public: !!p.is_public, tags: tagList(p.tags || []) }
+      return ok(await sb.from('projects').update(patch).eq('id', requireId(id)).select('id').single())
+    },
+    // Pending requests on projects the person leads, for the navigation badge.
+    pending: async uid => {
+      const result = await sb.from('project_members').select('id,project:projects!inner(owner_id)', { count: 'exact', head: true }).eq('status', 'pendiente').eq('project.owner_id', requireId(uid))
+      ok(result); return result.count || 0
     },
     invite: async id => ok(await sb.rpc('project_invite_code', { pid: requireId(id) })),
     request: async (pid, uid) => ok(await sb.from('project_members').insert({ project_id: requireId(pid), user_id: requireId(uid), status: 'pendiente' })),
@@ -55,12 +73,27 @@ export function createApi(sb) {
   }
   const resources = {
     list: async ({ q, subject, level, tags, owner, from = 0, to = 11 } = {}) => {
-      let query = match(sb.from('resources').select(RESOURCE), q, ['title', 'description'])
-      if (subject) query = query.eq('subject_area', subject)
-      if (level) query = query.eq('education_level', level)
-      if (tags?.length) query = query.contains('tags', tags)
-      if (owner) query = query.eq('owner_id', requireId(owner))
-      return ok(await query.order('created_at', { ascending: false }).order('id').range(from, to)) || []
+      if (owner) requireId(owner)
+      return await searchable(filter => {
+        let query = filter(sb.from('resources').select(RESOURCE))
+        if (subject) query = query.eq('subject_area', subject)
+        if (level) query = query.eq('education_level', level)
+        if (tags?.length) query = query.contains('tags', tags)
+        if (owner) query = query.eq('owner_id', owner)
+        return query.order('created_at', { ascending: false }).order('id').range(from, to)
+      }, q, ['title', 'description']) || []
+    },
+    get: async id => isUuid(id) ? ok(await sb.from('resources').select(RESOURCE).eq('id', id).maybeSingle()) : null,
+    update: async (r, meta) => {
+      const patch = {
+        title: text(meta.title, 3, 120, 'Título'), description: text(meta.description, 0, 500, 'Descripción'),
+        subject_area: text(meta.subject_area, 1, 80, 'Asignatura'), education_level: meta.education_level || '', tags: tagList(meta.tags || []),
+      }
+      if (r.resource_type === 'external_link') {
+        if (!isHttpUrl(meta.link_url)) throw new Error('El enlace debe ser una dirección http:// o https:// válida.')
+        patch.link_url = meta.link_url.trim()
+      }
+      return ok(await sb.from('resources').update(patch).eq('id', requireId(r.id)).select(RESOURCE).single())
     },
     create: async (meta, file, uid) => {
       let row = { ...meta, title: text(meta.title, 3, 120, 'Título'), owner_id: requireId(uid), resource_type: file ? 'file' : 'external_link' }
@@ -99,12 +132,16 @@ export function createApi(sb) {
     },
   }
   const people = {
-    teachers: async ({ q, subject, level, from = 0, to = 11 } = {}) => {
-      let query = match(sb.from('profiles').select(PROFILE).eq('role', 'docente'), q, ['full_name', 'bio', 'center', 'city'])
-      if (subject) query = query.eq('subject_area', subject)
-      if (level) query = query.contains('education_levels', [level])
-      return ok(await query.order('full_name').order('id').range(from, to)) || []
+    directory: async ({ role = 'docente', q, subject, level, from = 0, to = 11 } = {}) => {
+      if (!['docente', 'empresa'].includes(role)) throw new Error('Directorio no disponible.')
+      return await searchable(filter => {
+        let query = filter(sb.from('profiles').select(PROFILE).eq('role', role))
+        if (role === 'docente' && subject) query = query.eq('subject_area', subject)
+        if (role === 'docente' && level) query = query.contains('education_levels', [level])
+        return query.order('full_name').order('id').range(from, to)
+      }, q, ['full_name', 'bio', 'center', 'city']) || []
     },
+    teachers: async (options = {}) => people.directory({ ...options, role: 'docente' }),
     get: async id => isUuid(id) ? ok(await sb.from('profiles').select(PROFILE).eq('id', id).maybeSingle()) : null,
     update: async (uid, patch) => ok(await sb.from('profiles').update(patch).eq('id', requireId(uid)).select(PROFILE).single()),
     byIds: async ids => ids.length ? ok(await sb.from('profiles').select('id,full_name,role,subject_area,avatar_url').in('id', ids.map(requireId))) : [],

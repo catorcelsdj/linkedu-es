@@ -16,7 +16,8 @@ npm ci
    - `supabase/migrations/002_mejoras.sql`
    - `supabase/migrations/003_etiquetas_avatares_realtime.sql`
    - `supabase/migrations/004_estabilidad_y_permisos.sql`
-3. Si ya usabas la versión 4 con las migraciones 001–003 aplicadas, ejecuta **solo 004**. No vuelvas a ejecutar 001 sobre una base de datos existente. 004 conserva el contenido, repara responsables sin membresía y puede repetirse.
+   - `supabase/migrations/005_busqueda_edicion_avisos.sql`
+3. Si ya tienes aplicadas 001–004, ejecuta **solo 005**. No vuelvas a ejecutar 001 sobre una base de datos existente. 004 y 005 conservan el contenido y pueden repetirse.
 4. En Supabase → Authentication → URL Configuration, añade `http://localhost:5173` y tu dominio de producción a las URL autorizadas. Configura también Site URL. La confirmación de cuenta y la recuperación de contraseña dependen de estos ajustes.
 5. Inicia:
 
@@ -26,7 +27,21 @@ npm run dev
 
 Sin configuración válida, la aplicación muestra una pantalla de instalación y no intenta conectarse a un servidor ficticio. Si faltan tablas, columnas o funciones, muestra el error y permite reintentar. **La migración 004 es necesaria para esta versión.** Aplica 004 y publica el nuevo frontend juntos: restringe el antiguo `select *` sobre perfiles y proyectos.
 
-## Qué cambia
+## Novedades de la versión 5.1
+
+- **Edición** de proyectos (título, descripción, visibilidad y etiquetas) y de recursos (datos descriptivos y enlace; el fichero no se sustituye).
+- **Directorio en las dos direcciones**: pestañas Docentes y Empresas (`/docentes?tipo=empresas`).
+- **Búsqueda sin tildes ni mayúsculas** en proyectos, recursos y directorio (columna `search` de 005). Sin 005, la búsqueda sigue funcionando como antes.
+- **Avisos de proyecto en tiempo real**: solicitudes nuevas, aceptaciones y publicaciones del muro. Contador de solicitudes pendientes en el menú y muro/equipo que se actualizan solos.
+- **Retirar una solicitud pendiente** desde el proyecto.
+- **Mensajes**: Intro envía y Mayús+Intro añade una línea (con teclado físico; en pantallas táctiles, Intro añade líneas).
+- **Enlace directo a cada recurso** (`/recursos?ver=<id>`), con ficha y botón para copiar el enlace. El inicio enlaza al recurso concreto.
+- **Listas más fluidas**: al filtrar se mantienen los resultados anteriores atenuados hasta que llegan los nuevos; editar o borrar no recarga la lista ni pierde la posición.
+- **Accesibilidad**: al cambiar de página el foco pasa al contenido principal.
+- **Tema**: el interruptor muestra un sol en modo claro y una luna en modo oscuro. El nuevo tema se expande en círculo desde el interruptor (View Transitions; cambio instantáneo si el navegador no lo admite o se pide reducir movimiento).
+- **Vercel**: cabeceras de seguridad (CSP, HSTS, `nosniff`, `Referrer-Policy`, `Permissions-Policy`) y caché de un año para `/assets`.
+
+## Qué cambia en la versión 5
 
 - Entrada, panel de inicio, navegación, tarjetas y mensajes con una nueva identidad visual: cristal sutil, verde y azul profundo, fondos con profundidad y una jerarquía más clara. Se conserva el isotipo de Linkedu.
 - Temas claro y oscuro coherentes, preferencia del sistema, sincronización entre pestañas, tipografías incluidas en el proyecto y respeto a la reducción de movimiento.
@@ -62,6 +77,8 @@ También puedes usar Chrome o Edge instalado mediante `PLAYWRIGHT_CHANNEL=chrome
 ## Publicar en Vercel
 
 Comando de instalación: `npm ci`. Compilación: `npm run build`. Directorio de salida: `dist`.
+
+La CSP de `vercel.json` permite conexiones a `*.supabase.co`. **Si usas un dominio propio para Supabase**, añádelo a `connect-src` e `img-src` (y a `wss://` en `connect-src`). Si editas el script en línea de `index.html`, actualiza su hash `sha256` en `script-src`: una prueba unitaria avisa si no coinciden.
 
 Configura `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en Vercel **antes de compilar**. Vite incorpora estas variables al build: cambiarlas requiere una nueva compilación. `vercel.json` mantiene las rutas de la SPA al recargar una página interna.
 

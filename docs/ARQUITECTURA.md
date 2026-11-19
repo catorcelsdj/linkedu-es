@@ -28,6 +28,13 @@ Las conversaciones se separan mediante una clave de React por destinatario. La b
 
 `useMessageEvents` usa canales independientes por función, elimina sus listeners al desmontar y añade un sondeo de respaldo de 20 segundos, condicionado a pestaña visible y conexión disponible. Al reconectar se consultan de nuevo los datos. Las lecturas solo se marcan con la pestaña visible.
 
+## Versión 5.1
+
+- Migración 005 (transaccional e idempotente): columna generada `search` con `search_text()` (minúsculas y sin tildes mediante `translate`, sin extensiones) en proyectos, recursos y perfiles; restricciones `NOT VALID` de longitud y de enlaces http(s); `UPDATE` de recursos limitado a las columnas descriptivas; `project_members` y `project_posts` en la publicación de Realtime.
+- `dataApi` busca con `ilike` sobre `search` y, si la columna no existe (42703), repite la consulta con el filtro anterior.
+- `useRealtime` generaliza la suscripción (tema único por montaje, sondeo opcional). `useMessageEvents` lo usa. El layout escucha solicitudes, aceptaciones y publicaciones (RLS decide qué recibe cada persona) y reenvía un evento `linkedu:project` que refresca el proyecto abierto y el contador de pendientes.
+- `usePaged` conserva los resultados (`stale`) durante una recarga y ofrece `remove` y `replace` para cambios locales que mantienen el offset correcto.
+
 ## Storage
 
 Los recursos siguen en un bucket privado, con enlaces firmados de 120 segundos y un máximo de 5 MB. La ventana se abre en el evento de clic, antes de esperar la firma, para evitar que el navegador bloquee la descarga. Se comprueba el protocolo de destino y se desconecta `opener`.

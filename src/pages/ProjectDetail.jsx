@@ -3,17 +3,19 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { projects } from '../services/api'
-import { fullDate, msgError, plural, timeAgo } from '../lib/format'
+import { PROJECT_EVENT, fullDate, msgError, plural, timeAgo } from '../lib/format'
 import { Avatar, EmptyState } from '../components/ui'
 import { TagList } from '../components/Tags'
 import { useConfirm } from '../context/ConfirmContext'
 import { LoadingState } from '../components/ui'
+import Icon from '../components/Icon'
+import ProjectForm from '../components/ProjectForm'
 
 export default function ProjectDetail() {
   const { id } = useParams(), { profile: me } = useAuth(), toast = useToast(), nav = useNavigate()
   const [p, setP] = useState(undefined), [ms, setMs] = useState([]), [posts, setPosts] = useState([])
   const [tab, setTab] = useState('actividad'), [text, setText] = useState(''), [busy, setBusy] = useState(false)
-  const [error, setError] = useState(''), [invite, setInvite] = useState(null)
+  const [error, setError] = useState(''), [invite, setInvite] = useState(null), [editing, setEditing] = useState(false)
   const version = useRef(0), locked = useRef(false), confirm = useConfirm()
   const invalidate = useCallback(() => { version.current++ }, [])
 
@@ -32,6 +34,12 @@ export default function ProjectDetail() {
     } catch (e) { if (request === version.current) setError(msgError(e)) }
   }, [id, me.id])
   useEffect(() => { setP(undefined); setMs([]); setPosts([]); setInvite(null); setText(''); load(); return invalidate }, [load, invalidate])
+  // Live wall and team: the layout relays Realtime notices for this project.
+  useEffect(() => {
+    const onEvent = e => { if (e.detail?.projectId === id && !e.detail.local && !locked.current) load() }
+    window.addEventListener(PROJECT_EVENT, onEvent)
+    return () => window.removeEventListener(PROJECT_EVENT, onEvent)
+  }, [id, load])
 
   if (p === undefined) return error ? <div className="notice notice-error" role="alert">{error}<button className="btn btn-s mt-3 block" onClick={load}>Reintentar</button></div> : <LoadingState />
   if (p === null) return <div><Link to="/proyectos" className="link text-sm">Volver a proyectos</Link><h1 className="h1 mt-4">Proyecto no disponible</h1><p className="mt-2 text-muted">No existe, o es privado y no formas parte de él.</p></div>
@@ -44,7 +52,11 @@ export default function ProjectDetail() {
     if (locked.current) return
     locked.current = true
     setBusy(true)
-    try { await fn(); if (okMsg) toast(okMsg); if (after) await after(); else await load() } catch (e) { toast(msgError(e), 'error') } finally { locked.current = false; setBusy(false) }
+    try {
+      await fn(); if (okMsg) toast(okMsg)
+      window.dispatchEvent(new CustomEvent(PROJECT_EVENT, { detail: { projectId: id, local: true } }))
+      if (after) await after(); else await load()
+    } catch (e) { toast(msgError(e), 'error') } finally { locked.current = false; setBusy(false) }
   }
   const copyCode = async () => { try { await navigator.clipboard.writeText(invite); toast('Código copiado') } catch { toast('No se pudo copiar. Selecciona el código y cópialo manualmente.', 'info') } }
   const publish = e => { e.preventDefault(); if (text.trim()) act(() => projects.addPost(id, me.id, text.trim()), 'Publicado', () => { setText(''); load() }) }
@@ -57,10 +69,11 @@ export default function ProjectDetail() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0"><h1 className="h1">{p.title}</h1>
           <p className="mt-1 text-sm text-muted">Responsable: {p.owner?.id ? <Link className="hover:underline" to={`/docentes/${p.owner.id}`}>{p.owner.full_name}</Link> : 'no disponible'}. Creado el {fullDate(p.created_at)}. {p.is_public ? 'Proyecto abierto.' : 'Proyecto privado.'}</p></div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {!isMember && !mem && me.role !== 'empresa' && p.is_public && <button className="btn" disabled={busy} onClick={() => act(() => projects.request(id, me.id), 'Solicitud enviada')}>Solicitar unirme</button>}
-          {mem?.status === 'pendiente' && <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">Solicitud pendiente de respuesta</span>}
+          {mem?.status === 'pendiente' && <><span className="text-sm font-semibold text-amber-700 dark:text-amber-400">Solicitud pendiente de respuesta</span><button className="btn btn-s" disabled={busy} onClick={async () => await confirm('¿Retirar tu solicitud para unirte a este proyecto?', 'Retirar solicitud') && act(() => projects.removeMember(mem.id), 'Solicitud retirada')}>Cancelar solicitud</button></>}
           {isMember && !mine && <button className="danger" disabled={busy} onClick={async () => await confirm('¿Salir de este proyecto?', 'Salir del proyecto') && act(() => projects.removeMember(mem.id), 'Has salido del proyecto', () => nav('/proyectos'))}>Salir del proyecto</button>}
+          {mine && <button className="btn btn-s" disabled={busy} onClick={() => setEditing(true)}><Icon name="edit" size={16} />Editar</button>}
           {mine && <button className="danger" disabled={busy} onClick={async () => await confirm('Se borrará el proyecto y toda su actividad. Esta acción no se puede deshacer.', 'Eliminar proyecto') && act(() => projects.remove(id), 'Proyecto eliminado', () => nav('/proyectos'))}>Eliminar proyecto</button>}
         </div>
       </div>
@@ -107,5 +120,6 @@ export default function ProjectDetail() {
           {mine && m.user_id !== me.id && <button className="danger" disabled={busy} onClick={async () => await confirm('¿Quitar a esta persona del proyecto?', 'Quitar participante') && act(() => projects.removeMember(m.id), 'Participante eliminado')}>Quitar</button>}
         </div>))}</div>}
     </>)}
+    {editing && <ProjectForm project={p} onClose={() => setEditing(false)} onSaved={data => { setEditing(false); setP(current => ({ ...current, ...data })) }} />}
   </>)
 }

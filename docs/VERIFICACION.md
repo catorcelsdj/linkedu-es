@@ -5,8 +5,8 @@ Comprobaciones realizadas el 19 de noviembre de 2026, sobre el código entregado
 | Comprobación | Resultado |
 | --- | --- |
 | ESLint (`npm run lint`, máximo 0 avisos) | Correcto: 0 errores y 0 avisos |
-| Pruebas de lógica y PostgreSQL (`npm test`) | 18 aprobadas, 0 fallidas |
-| Pruebas de navegador (`npm run test:e2e`) | 14 aprobadas, 0 fallidas, 0 omitidas, 0 reintentos |
+| Pruebas de lógica y PostgreSQL (`npm test`) | 22 aprobadas, 0 fallidas |
+| Pruebas de navegador (`npm run test:e2e`) | 19 aprobadas, 0 fallidas, 0 omitidas, 0 reintentos |
 | Compilación de producción (`npm run build`) | Correcta, sin avisos de Vite |
 | Manifiesto y lockfile | Versiones y dependencias coinciden |
 
@@ -35,6 +35,13 @@ Pruebas de regresión añadidas; las tres de navegador fallan con el código ant
 - Proyecto ajeno: la pestaña de participantes muestra un aviso en lugar de un panel vacío.
 - Fusión de mensajes con fechas en formatos distintos, fechas futuras por desfase de reloj, tamaños de fichero ausentes y fechas inválidas.
 - Auditoría axe adicional de 11 rutas en claro y oscuro, a 1440 px y 390 px: 0 infracciones y sin desbordamiento horizontal. Las comprobaciones de accesibilidad esperan a que terminen las animaciones de entrada para no medir colores a mitad de transición.
+
+## Mejoras de la versión 5.1
+
+- PGlite: 005 se aplica dos veces sin errores; búsqueda sin tildes en perfiles, recursos y proyectos; el responsable edita y nadie más; no se puede cambiar el responsable ni el fichero de un recurso; enlaces `javascript:` y títulos fuera de rango rechazados; Realtime publica mensajes, miembros y publicaciones.
+- Lógica: búsqueda normalizada y respaldo sin 005; validación previa a la edición; hash de la CSP coincide con el script de `index.html`.
+- Navegador: sol y luna en el selector de tema; directorio de empresas; edición de proyecto; contador de solicitudes pendientes; ficha de recurso por enlace directo y edición sin recargar la lista; Intro y Mayús+Intro; retirar solicitud; foco al navegar.
+- Auditoría axe ampliada a 14 rutas (incluidas empresas, ficha de recurso y perfil de empresa) en claro y oscuro, escritorio y móvil: 0 infracciones.
 
 ## Capturas
 

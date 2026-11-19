@@ -1,5 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { createApi } from '../../src/services/dataApi.js'
 import { isHttpUrl, isUuid, searchTerm, mergeMessages, validateFile } from '../../src/lib/validation.js'
 import { fileSize, fullDate, msgError, timeAgo } from '../../src/lib/format.js'
@@ -39,7 +41,7 @@ test('archivos vacíos, tipos no soportados y límites producen errores útiles'
   assert.equal(validateFile({ name: 'a.ZIP', size: 5242880 }).contentType, 'application/zip')
 })
 test('esquema ausente y fechas inválidas no se convierten en pantallas rotas', () => {
-  assert.match(msgError({ code: '42703', message: 'column profiles.center does not exist' }), /migraciones 001 a 004/)
+  assert.match(msgError({ code: '42703', message: 'column profiles.center does not exist' }), /migraciones 001 a 005/)
   assert.equal(timeAgo('fecha incorrecta'), 'Fecha no disponible')
 })
 function fakeClient({ insertError, deleteError, storageError } = {}) {
@@ -69,4 +71,30 @@ test('un identificador mal formado nunca se envía a la base de datos', async ()
   assert.equal(await api.people.get('bad'), null)
   assert.equal(await api.projects.get('bad'), null)
   await assert.rejects(api.messages.send(uid, uid, 'hola'), /otra persona/)
+})
+test('la CSP de Vercel autoriza exactamente el script de tema de index.html', () => {
+  const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8')
+  const inline = html.match(/<script>([\s\S]*?)<\/script>/)[1]
+  const hash = createHash('sha256').update(inline).digest('base64')
+  const csp = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8')).headers[0].headers.find(h => h.key === 'Content-Security-Policy').value
+  assert.ok(csp.includes(`'sha256-${hash}'`), 'Actualiza el hash de script-src en vercel.json tras editar el script de index.html')
+})
+function recorder(errors = []) {
+  const calls = []
+  const query = new Proxy({}, { get: (_, name) => name === 'then' ? (resolve => resolve(errors.length ? { error: errors.shift() } : { data: [] })) : (...args) => { calls.push([name, ...args]); return query } })
+  return { calls, client: { from: table => { calls.push(['from', table]); return query } } }
+}
+test('la búsqueda ignora tildes y vuelve al filtro anterior si falta la migración 005', async () => {
+  const { calls, client } = recorder()
+  await createApi(client).projects.list({ q: 'Matemáticas Ñandú' })
+  assert.deepEqual(calls.find(call => call[0] === 'ilike'), ['ilike', 'search', '%matematicas nandu%'])
+  const legacy = recorder([{ code: '42703', message: 'column projects.search does not exist' }])
+  await createApi(legacy.client).resources.list({ q: 'química' })
+  assert.match(legacy.calls.find(call => call[0] === 'or')[1], /title\.ilike\.%química%/)
+})
+test('editar valida los datos antes de enviarlos', async () => {
+  const api = createApi(null)
+  await assert.rejects(api.projects.update(uid, { title: 'No', description: '' }), /Título/)
+  await assert.rejects(api.resources.update({ id: uid, resource_type: 'external_link' }, { title: 'Guía', description: '', subject_area: 'Arte', link_url: 'javascript:alert(1)' }), /http/)
+  await assert.rejects(api.people.directory({ role: 'alumno' }), /no disponible/)
 })

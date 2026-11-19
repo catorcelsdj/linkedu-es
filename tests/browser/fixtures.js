@@ -1,9 +1,10 @@
-export const ids = { me: '10000000-0000-4000-8000-000000000001', ana: '10000000-0000-4000-8000-000000000002', pablo: '10000000-0000-4000-8000-000000000003', project: '20000000-0000-4000-8000-000000000001' }
+export const ids = { me: '10000000-0000-4000-8000-000000000001', ana: '10000000-0000-4000-8000-000000000002', pablo: '10000000-0000-4000-8000-000000000003', company: '10000000-0000-4000-8000-000000000004', project: '20000000-0000-4000-8000-000000000001', resource: '30000000-0000-4000-8000-000000000002' }
 const timestamp = '2026-11-18T15:00:00+00:00'
 export async function mockBackend(page, { signedIn = true, role = 'docente' } = {}) {
   const me = { id: ids.me, role, full_name: 'Lucía Martínez', center: 'IES Sierra Norte', city: 'Madrid', subject_area: 'Ciencias', bio: 'Conecto aulas a través de proyectos de ciencia y sostenibilidad.', education_levels: ['ESO', 'Bachillerato'], website: '', avatar_url: '', social: {}, created_at: timestamp }
   const ana = { ...me, id: ids.ana, role: 'docente', full_name: 'Ana García', subject_area: 'Tecnología', center: 'IES Mediterráneo', city: 'Valencia' }
   const pablo = { ...me, id: ids.pablo, role: 'docente', full_name: 'Pablo Ruiz', subject_area: 'Arte', city: 'Sevilla' }
+  const company = { ...me, id: ids.company, role: 'empresa', full_name: 'Robótica Educativa SL', subject_area: '', center: 'Kits de robótica para el aula', city: 'Zaragoza', education_levels: [] }
   const projects = [
     { id: ids.project, owner_id: ids.me, title: 'Un huerto, mil aprendizajes', description: 'Conectamos ciencia, sostenibilidad y creatividad. Un proyecto entre centros para cultivar un futuro mejor.', is_public: true, tags: ['ABP', 'Interdisciplinar'], created_at: timestamp, owner: me, project_members: [{ user_id: ids.me, status: 'aceptado' }, { user_id: ids.ana, status: 'pendiente' }] },
     { id: '20000000-0000-4000-8000-000000000002', owner_id: ids.ana, title: 'Pequeños inventores, grandes ideas', description: 'Un laboratorio de ideas para resolver retos cotidianos con tecnología y mucho ingenio.', is_public: true, tags: ['Arduino', 'Scratch'], created_at: '2026-11-17T10:00:00+00:00', owner: ana, project_members: [] },
@@ -12,7 +13,7 @@ export async function mockBackend(page, { signedIn = true, role = 'docente' } = 
     { id: '30000000-0000-4000-8000-000000000001', title: 'El aula como laboratorio', description: 'Una guía práctica para despertar la curiosidad científica con materiales cotidianos.', subject_area: 'Ciencias', education_level: 'ESO', resource_type: 'external_link', link_url: 'https://example.org/recurso', owner_id: ids.me, owner: me, created_at: timestamp, tags: ['ABP', 'Docentes'] },
     { id: '30000000-0000-4000-8000-000000000002', title: 'Ideas que se programan', description: 'Retos de pensamiento computacional para crear en equipo.', subject_area: 'Tecnología', education_level: 'Primaria', resource_type: 'file', file_path: `${ids.ana}/retos.pdf`, file_size: 131072, owner_id: ids.ana, owner: ana, created_at: timestamp, tags: ['Scratch'] },
   ]
-  const state = { me, people: [me, ana, pablo], projects, resources, requests: [], errors: {}, delays: {}, threads: {}, members: null, topics: [] }
+  const state = { me, people: [me, ana, pablo, company], projects, resources, requests: [], errors: {}, delays: {}, threads: {}, members: null, topics: [] }
   const token = `${btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))}.${btoa(JSON.stringify({ sub: ids.me, role: 'authenticated', exp: 4102444800 }))}.test-signature`
   if (signedIn) await page.addInitScript(({ me, token }) => {
     localStorage.setItem('sb-linkedu-tests-auth-token', JSON.stringify({ access_token: token, refresh_token: 'test-refresh', token_type: 'bearer', expires_at: 4102444800, expires_in: 3600, user: { id: me.id, email: 'lucia@example.org', app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '2026-01-01T00:00:00Z' } }))
@@ -46,11 +47,13 @@ export async function mockBackend(page, { signedIn = true, role = 'docente' } = 
     if (table === 'profiles') {
       const id = url.searchParams.get('id')?.replace('eq.', '')
       if (method === 'PATCH') { Object.assign(me, request.postDataJSON()); return result([me]) }
-      return result(id ? state.people.filter(person => person.id === id) : state.people)
+      const role = url.searchParams.get('role')?.replace('eq.', '')
+      return result(id ? state.people.filter(person => person.id === id) : state.people.filter(person => !role || person.role === role))
     }
     if (table === 'projects') {
       if (method === 'DELETE') return result([{ id: ids.project }])
-      const id = url.searchParams.get('id')?.replace('eq.', ''), q = url.searchParams.get('or') || ''
+      if (method === 'PATCH') { Object.assign(projects[0], request.postDataJSON()); return result([{ id: ids.project }]) }
+      const id = url.searchParams.get('id')?.replace('eq.', ''), q = `${url.searchParams.get('or') || ''} ${url.searchParams.get('search') || ''}`
       let rows = id && !id.startsWith('in.') ? projects.filter(project => project.id === id) : projects
       if (q.includes('owner_id.eq')) rows = rows.filter(project => project.owner_id === ids.me || project.project_members.some(member => member.user_id === ids.me))
       if (q.includes('antiguo')) rows = [{ ...projects[0], title: 'Resultado antiguo' }]
@@ -63,7 +66,9 @@ export async function mockBackend(page, { signedIn = true, role = 'docente' } = 
     if (table === 'resources') {
       if (method === 'POST') return result([{ ...request.postDataJSON(), id: resources[0].id }])
       if (method === 'DELETE') return result([{ id: resources[0].id }])
-      return result(resources)
+      if (method === 'PATCH') { const row = resources.find(r => r.id === url.searchParams.get('id')?.replace('eq.', '')); Object.assign(row, request.postDataJSON()); return result([row]) }
+      const id = url.searchParams.get('id')?.replace('eq.', '')
+      return result(id ? resources.filter(r => r.id === id) : resources)
     }
     if (table === 'create_project' || table === 'join_project_by_code') return route.fulfill({ json: ids.project })
     if (table === 'project_invite_code') return route.fulfill({ json: 'LK-ABC1234' })

@@ -10,32 +10,8 @@ import Icon from '../components/Icon'
 import { FormError, LoadMore, PageHead, Status } from '../components/ui'
 import ProjectCard from '../components/ProjectCard'
 import Modal from '../components/Modal'
-import { TagFilter, TagPicker } from '../components/Tags'
-
-function NewProject({ onClose }) {
-  const { profile: me } = useAuth(), toast = useToast(), nav = useNavigate()
-  const [f, setF] = useState({ title: '', description: '', is_public: true, tags: [] }), [err, setErr] = useState(''), [busy, setBusy] = useState(false)
-  const submit = async e => {
-    e.preventDefault()
-    if (busy) return
-    setErr('')
-    if (f.title.trim().length < 4) return setErr('El título necesita al menos 4 caracteres.')
-    setBusy(true)
-    try { const p = await projects.create({ ...f, title: f.title.trim(), description: f.description.trim() }, me.id); toast('Proyecto creado'); nav(`/proyectos/${p.id}`) }
-    catch (e) { setErr(msgError(e)); setBusy(false) }
-  }
-  return (
-    <Modal title="Nuevo proyecto" onClose={onClose} dismissible={!busy}><form onSubmit={submit}><fieldset disabled={busy}>
-      <label className="lbl" htmlFor="t">Título</label><input id="t" className="input" maxLength={100} value={f.title} onChange={e => setF({ ...f, title: e.target.value })} autoFocus />
-      <label className="lbl" htmlFor="d">¿De qué trata y qué buscas?</label><textarea id="d" rows={4} maxLength={600} className="input" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
-      <label className="mt-4 flex gap-2 text-sm"><input type="checkbox" className="mt-0.5" checked={f.is_public} onChange={e => setF({ ...f, is_public: e.target.checked })} />
-        <span><b>Proyecto abierto.</b> Aparece en la lista y cualquiera puede solicitar unirse. Si lo desmarcas, solo entra quien tenga el código.</span></label>
-      <TagPicker value={f.tags} onChange={tags => setF({ ...f, tags })} />
-      <FormError>{err}</FormError>
-      <div className="mt-5 flex justify-end gap-2"><button type="button" className="btn btn-s" onClick={onClose}>Cancelar</button><button className="btn" disabled={busy}>Crear proyecto</button></div>
-    </fieldset></form></Modal>
-  )
-}
+import { TagFilter } from '../components/Tags'
+import ProjectForm from '../components/ProjectForm'
 
 function JoinCode({ onClose }) {
   const toast = useToast(), nav = useNavigate()
@@ -86,9 +62,9 @@ export default function Projects() {
     </div>
     <TagFilter value={tags} onChange={setTags} />
     <Status loading={list.loading} error={list.error} count={list.items.length} empty={empty} onRetry={list.reload} />
-    <div className="grid gap-4 md:grid-cols-2">{list.items.map(p => <ProjectCard key={p.id} p={p} uid={me.id} />)}</div>
+    <div className="results grid gap-4 md:grid-cols-2" aria-busy={list.stale}>{list.items.map(p => <ProjectCard key={p.id} p={p} uid={me.id} />)}</div>
     <LoadMore more={list.more} loading={list.loading} onClick={list.loadMore} />
-    {modal === 'new' && <NewProject onClose={close} />}
+    {modal === 'new' && <ProjectForm onClose={close} />}
     {modal === 'code' && <JoinCode onClose={close} />}
   </>)
 }

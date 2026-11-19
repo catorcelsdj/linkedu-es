@@ -11,6 +11,7 @@ export const MAX_TAGS = 8
 export const SOCIALS = [['linkedin', 'LinkedIn'], ['github', 'GitHub'], ['x', 'X'], ['instagram', 'Instagram']]
 export { isHttpUrl } from './validation.js'
 export const UNREAD_EVENT = 'linkedu:unread'
+export const PROJECT_EVENT = 'linkedu:project'
 export const ROLE_LABEL = { docente: 'Docente', alumno: 'Alumno', empresa: 'Empresa' }
 
 const rtf = new Intl.RelativeTimeFormat('es', { numeric: 'auto' })
@@ -42,7 +43,7 @@ const MAP = [
 ]
 export const msgError = e => {
   const m = e?.message || String(e || '')
-  if (['42703', '42P01', 'PGRST202', 'PGRST204', 'PGRST205'].includes(e?.code) || /schema cache|column .+ does not exist/.test(m)) return 'La base de datos necesita actualizarse. Aplica las migraciones 001 a 004 indicadas en el README y vuelve a intentarlo.'
+  if (['42703', '42P01', 'PGRST202', 'PGRST204', 'PGRST205'].includes(e?.code) || /schema cache|column .+ does not exist/.test(m)) return 'La base de datos necesita actualizarse. Aplica las migraciones 001 a 005 indicadas en el README y vuelve a intentarlo.'
   if (e?.code === 'PGRST116') return 'El elemento ya no está disponible o no tienes permiso para modificarlo.'
   if (e?.code === '42501') return 'No tienes permiso para hacer esto. Si acabas de actualizar la app, comprueba las migraciones.'
   if (e?.code === '23505') return 'Ese elemento ya existe o la solicitud ya se ha enviado.'

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import EmptyState from './EmptyState'
+import Icon from './Icon'
 import { initials } from '../lib/format'
 import { useTheme } from '../context/ThemeContext'
 
@@ -64,8 +65,9 @@ export function ThemeSwitch({ compact }) {
     <button type="button" role="switch" aria-checked={dark} aria-label="Modo oscuro" onClick={toggle}
       className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm text-muted hover:bg-slate-50 hover:text-ink ${compact ? 'w-auto' : 'w-full'}`}>
       {!compact && <span>Modo oscuro</span>}
-      <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors motion-reduce:transition-none ${dark ? 'bg-cyan-500 shadow-[0_0_12px_rgba(34,211,238,.6)]' : 'bg-slate-300'}`}>
-        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all motion-reduce:transition-none ${dark ? 'left-[18px]' : 'left-0.5'}`} />
+      {/* Sun while the light theme is active, moon while the dark theme is active. */}
+      <span className={`theme-track ${dark ? 'is-dark' : ''}`}>
+        <span className="theme-knob" data-icon={dark ? 'moon' : 'sun'}><Icon key={dark ? 'moon' : 'sun'} name={dark ? 'moon' : 'sun'} size={13} className="theme-glyph" /></span>
       </span>
     </button>
   )
