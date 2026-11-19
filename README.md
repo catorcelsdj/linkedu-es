@@ -17,7 +17,8 @@ npm ci
    - `supabase/migrations/003_etiquetas_avatares_realtime.sql`
    - `supabase/migrations/004_estabilidad_y_permisos.sql`
    - `supabase/migrations/005_busqueda_edicion_avisos.sql`
-3. Si ya tienes aplicadas 001–004, ejecuta **solo 005**. No vuelvas a ejecutar 001 sobre una base de datos existente. 004 y 005 conservan el contenido y pueden repetirse.
+   - `supabase/migrations/006_notificaciones.sql`
+3. Si ya tienes aplicadas 001–005, ejecuta **solo 006**. No vuelvas a ejecutar 001 sobre una base de datos existente. 004, 005 y 006 conservan el contenido y pueden repetirse.
 4. En Supabase → Authentication → URL Configuration, añade `http://localhost:5173` y tu dominio de producción a las URL autorizadas. Configura también Site URL. La confirmación de cuenta y la recuperación de contraseña dependen de estos ajustes.
 5. Inicia:
 
@@ -26,6 +27,13 @@ npm run dev
 ```
 
 Sin configuración válida, la aplicación muestra una pantalla de instalación y no intenta conectarse a un servidor ficticio. Si faltan tablas, columnas o funciones, muestra el error y permite reintentar. **La migración 004 es necesaria para esta versión.** Aplica 004 y publica el nuevo frontend juntos: restringe el antiguo `select *` sobre perfiles y proyectos.
+
+## Novedades de la versión 5.2
+
+- **Centro de notificaciones**: campana con contador en la barra superior y panel con mensajes nuevos, solicitudes, entradas con código, aceptaciones y publicaciones de tus proyectos. Cada aviso lleva a su conversación, proyecto o equipo y se marca como leído; también hay «Marcar todas como leídas». Los avisos los crean disparadores en la base de datos (migración 006), se actualizan en tiempo real y los mensajes seguidos de una misma persona se agrupan.
+- **Desplegables propios** en filtros y formularios: misma estética que el resto de campos en claro y oscuro, con teclado completo (flechas, Inicio/Fin, escribir para buscar, Escape) y lectores de pantalla.
+- **Visibilidad del proyecto** con dos tarjetas grandes, Abierto y Privado, con icono y descripción.
+- Selector de tema con la etiqueta «Tema» y buscador de recursos «Buscar por título o descripción».
 
 ## Novedades de la versión 5.1
 

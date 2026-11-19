@@ -35,6 +35,12 @@ Las conversaciones se separan mediante una clave de React por destinatario. La b
 - `useRealtime` generaliza la suscripción (tema único por montaje, sondeo opcional). `useMessageEvents` lo usa. El layout escucha solicitudes, aceptaciones y publicaciones (RLS decide qué recibe cada persona) y reenvía un evento `linkedu:project` que refresca el proyecto abierto y el contador de pendientes.
 - `usePaged` conserva los resultados (`stale`) durante una recarga y ofrece `remove` y `replace` para cambios locales que mantienen el offset correcto.
 
+## Versión 5.2
+
+- Migración 006: tabla `notifications` (RLS: cada persona lee, marca y borra solo las suyas; sin INSERT desde la API). Disparadores SECURITY DEFINER sobre `messages` (agrupa los mensajes sin leer de una misma persona y marca el aviso al leer la conversación), `project_members` (solicitud, entrada con código, aceptación) y `project_posts` (resto de participantes aceptados). Publicada en Realtime.
+- `NotificationBell` consulta el contador y la lista, escucha INSERT/UPDATE de sus avisos y navega con `notificationView()`; los avisos de equipo abren `?tab=personas`.
+- `Select` implementa el patrón combobox de solo selección del APG: botón con `role="combobox"`, lista `listbox` con `aria-activedescendant`, sin portal para funcionar dentro de `<dialog>`, y apertura hacia arriba cuando no cabe.
+
 ## Storage
 
 Los recursos siguen en un bucket privado, con enlaces firmados de 120 segundos y un máximo de 5 MB. La ventana se abre en el evento de clic, antes de esperar la firma, para evitar que el navegador bloquee la descarga. Se comprueba el protocolo de destino y se desconecta `opener`.

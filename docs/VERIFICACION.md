@@ -5,8 +5,8 @@ Comprobaciones realizadas el 19 de noviembre de 2026, sobre el código entregado
 | Comprobación | Resultado |
 | --- | --- |
 | ESLint (`npm run lint`, máximo 0 avisos) | Correcto: 0 errores y 0 avisos |
-| Pruebas de lógica y PostgreSQL (`npm test`) | 22 aprobadas, 0 fallidas |
-| Pruebas de navegador (`npm run test:e2e`) | 19 aprobadas, 0 fallidas, 0 omitidas, 0 reintentos |
+| Pruebas de lógica y PostgreSQL (`npm test`) | 23 aprobadas, 0 fallidas |
+| Pruebas de navegador (`npm run test:e2e`) | 22 aprobadas, 0 fallidas, 0 omitidas, 0 reintentos |
 | Compilación de producción (`npm run build`) | Correcta, sin avisos de Vite |
 | Manifiesto y lockfile | Versiones y dependencias coinciden |
 
@@ -35,6 +35,11 @@ Pruebas de regresión añadidas; las tres de navegador fallan con el código ant
 - Proyecto ajeno: la pestaña de participantes muestra un aviso en lugar de un panel vacío.
 - Fusión de mensajes con fechas en formatos distintos, fechas futuras por desfase de reloj, tamaños de fichero ausentes y fechas inválidas.
 - Auditoría axe adicional de 11 rutas en claro y oscuro, a 1440 px y 390 px: 0 infracciones y sin desbordamiento horizontal. Las comprobaciones de accesibilidad esperan a que terminen las animaciones de entrada para no medir colores a mitad de transición.
+
+## Mejoras de la versión 5.2
+
+- PGlite: 006 se aplica dos veces; los mensajes seguidos se agrupan en un aviso con el último texto; leer la conversación marca el aviso; solicitud, aceptación y publicación llegan a quien corresponde y no a una solicitud pendiente; nadie ve ni inserta avisos ajenos ni cambia su tipo.
+- Navegador: la campana abre el panel, Escape devuelve el foco, un aviso lleva al equipo del proyecto y se marca como leído, «Marcar todas» deja el contador a cero; desplegables con ratón, flechas, Enter, Escape y búsqueda por letra; tarjetas Abierto/Privado envían la visibilidad correcta. axe sin infracciones con el panel y la lista abiertos.
 
 ## Mejoras de la versión 5.1
 

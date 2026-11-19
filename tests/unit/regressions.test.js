@@ -41,7 +41,7 @@ test('archivos vacíos, tipos no soportados y límites producen errores útiles'
   assert.equal(validateFile({ name: 'a.ZIP', size: 5242880 }).contentType, 'application/zip')
 })
 test('esquema ausente y fechas inválidas no se convierten en pantallas rotas', () => {
-  assert.match(msgError({ code: '42703', message: 'column profiles.center does not exist' }), /migraciones 001 a 005/)
+  assert.match(msgError({ code: '42703', message: 'column profiles.center does not exist' }), /migraciones 001 a 006/)
   assert.equal(timeAgo('fecha incorrecta'), 'Fecha no disponible')
 })
 function fakeClient({ insertError, deleteError, storageError } = {}) {

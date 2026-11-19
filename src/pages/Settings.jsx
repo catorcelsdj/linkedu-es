@@ -5,6 +5,7 @@ import { avatars, people } from '../services/api'
 import { squareJpeg } from '../lib/image'
 import { LEVELS, ROLE_LABEL, SOCIALS, SUBJECTS, isHttpUrl, msgError } from '../lib/format'
 import { Avatar, FormError, PageHead } from '../components/ui'
+import Select from '../components/Select'
 import { useConfirm } from '../context/ConfirmContext'
 
 const IMG_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -99,10 +100,10 @@ export default function Settings() {
         <div><label className="lbl mt-0!" htmlFor="n">{f.role === 'empresa' ? 'Nombre de la empresa' : 'Nombre completo'}</label><input id="n" className="input" maxLength={120} autoComplete="name" value={f.full_name} onChange={set('full_name')} /></div>
         <div><label className="lbl mt-0!" htmlFor="r">Tipo de cuenta</label>
           {alumno ? <p className="input bg-slate-50 text-muted">Alumno (no se puede cambiar)</p>
-            : <select id="r" className="input" value={f.role} onChange={set('role')}><option value="docente">Docente</option><option value="empresa">Empresa</option></select>}</div>
+            : <Select id="r" value={f.role} onChange={v => setF({ ...f, role: v })} options={[['docente', 'Docente'], ['empresa', 'Empresa']]} />}</div>
       </div>
       {isDoc && (<div className="grid gap-x-4 sm:grid-cols-2">
-        <div><label className="lbl" htmlFor="sa">Asignatura o área</label><select id="sa" className="input" value={f.subject_area} onChange={set('subject_area')}><option value="">Sin especificar</option>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select></div>
+        <div><label className="lbl" htmlFor="sa">Asignatura o área</label><Select id="sa" value={f.subject_area} onChange={v => setF({ ...f, subject_area: v })} options={[['', 'Sin especificar'], ...SUBJECTS]} /></div>
         <div><label className="lbl" htmlFor="ce">Centro educativo</label><input id="ce" className="input" maxLength={160} value={f.center} onChange={set('center')} /></div>
       </div>)}
       {f.role === 'empresa' && (<><label className="lbl" htmlFor="ce">Sector o actividad</label><input id="ce" className="input" maxLength={160} value={f.center} onChange={set('center')} placeholder="Ejemplo: plataforma de formación online" /></>)}
