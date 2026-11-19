@@ -51,7 +51,7 @@ export default function Settings() {
     e.preventDefault(); setErr('')
     if (busy || upl) return
     if (f.full_name.trim().length < 2) return setErr('El nombre es obligatorio.')
-    if (f.website && !isHttpUrl(f.website.trim())) return setErr('La web debe empezar por http:// o https://')
+    if (f.website.trim() && !isHttpUrl(f.website.trim())) return setErr('La web debe empezar por http:// o https://')
     for (const [k, label] of SOCIALS) if (f.social[k]?.trim() && !isHttpUrl(f.social[k].trim())) return setErr(`${label}: el enlace debe empezar por https://`)
     const roleChanged = !alumno && f.role !== me.role
     if (roleChanged && !await confirm(`Vas a cambiar tu cuenta a «${ROLE_LABEL[f.role]}». ${f.role === 'empresa' ? 'Dejarás de poder crear proyectos y recursos, y de aparecer en el directorio de docentes.' : 'Podrás crear proyectos y recursos, y aparecerás en el directorio.'}`, 'Cambiar tipo de cuenta')) return
@@ -96,18 +96,18 @@ export default function Settings() {
 
     <form onSubmit={save} className="panel p-6"><fieldset disabled={busy || upl}>
       <div className="grid gap-x-4 sm:grid-cols-2">
-        <div><label className="lbl mt-0!" htmlFor="n">{f.role === 'empresa' ? 'Nombre de la empresa' : 'Nombre completo'}</label><input id="n" className="input" value={f.full_name} onChange={set('full_name')} /></div>
+        <div><label className="lbl mt-0!" htmlFor="n">{f.role === 'empresa' ? 'Nombre de la empresa' : 'Nombre completo'}</label><input id="n" className="input" maxLength={120} autoComplete="name" value={f.full_name} onChange={set('full_name')} /></div>
         <div><label className="lbl mt-0!" htmlFor="r">Tipo de cuenta</label>
           {alumno ? <p className="input bg-slate-50 text-muted">Alumno (no se puede cambiar)</p>
             : <select id="r" className="input" value={f.role} onChange={set('role')}><option value="docente">Docente</option><option value="empresa">Empresa</option></select>}</div>
       </div>
       {isDoc && (<div className="grid gap-x-4 sm:grid-cols-2">
         <div><label className="lbl" htmlFor="sa">Asignatura o área</label><select id="sa" className="input" value={f.subject_area} onChange={set('subject_area')}><option value="">Sin especificar</option>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select></div>
-        <div><label className="lbl" htmlFor="ce">Centro educativo</label><input id="ce" className="input" value={f.center} onChange={set('center')} /></div>
+        <div><label className="lbl" htmlFor="ce">Centro educativo</label><input id="ce" className="input" maxLength={160} value={f.center} onChange={set('center')} /></div>
       </div>)}
-      {f.role === 'empresa' && (<><label className="lbl" htmlFor="ce">Sector o actividad</label><input id="ce" className="input" value={f.center} onChange={set('center')} placeholder="Ejemplo: plataforma de formación online" /></>)}
+      {f.role === 'empresa' && (<><label className="lbl" htmlFor="ce">Sector o actividad</label><input id="ce" className="input" maxLength={160} value={f.center} onChange={set('center')} placeholder="Ejemplo: plataforma de formación online" /></>)}
       <div className="grid gap-x-4 sm:grid-cols-2">
-        <div><label className="lbl" htmlFor="ci">Ciudad</label><input id="ci" className="input" value={f.city} onChange={set('city')} /></div>
+        <div><label className="lbl" htmlFor="ci">Ciudad</label><input id="ci" className="input" maxLength={120} autoComplete="address-level2" value={f.city} onChange={set('city')} /></div>
         {!alumno && <div><label className="lbl" htmlFor="w">Web</label><input id="w" className="input" placeholder="https://" value={f.website} onChange={set('website')} /></div>}
       </div>
       {isDoc && (<fieldset className="mt-4"><legend className="text-sm font-semibold">Etapas en las que trabajas</legend>

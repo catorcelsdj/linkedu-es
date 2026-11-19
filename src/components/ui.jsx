@@ -23,7 +23,7 @@ export function Avatar({ name, role, size = 36, src }) {
 
 export function Status({ loading, error, count, empty, onRetry }) {
   if (error) return <div role="alert" className="notice notice-error mb-4"><p>{error}</p>{onRetry && <button className="btn btn-s mt-3" onClick={onRetry}>Reintentar</button>}</div>
-  if (loading && !count) return <div className="grid gap-4 md:grid-cols-2" aria-busy="true" aria-label="Cargando">{[0, 1, 2, 3].map(i => <div key={i} className="panel h-36 animate-pulse" />)}</div>
+  if (loading && !count) return <div className="grid gap-4 md:grid-cols-2" role="status" aria-busy="true" aria-label="Cargando resultados">{[0, 1, 2, 3].map(i => <div key={i} className="panel h-36 animate-pulse" />)}</div>
   if (!loading && !count) return <div className="panel">{typeof empty === 'string' ? <EmptyState icon="search" title={empty} /> : <EmptyState {...empty} />}</div>
   return loading ? <p role="status" className="mb-3 text-sm text-muted">Actualizando resultados…</p> : null
 }

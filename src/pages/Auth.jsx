@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import { FormError, Isotipo, ThemeSwitch } from '../components/ui'
 import Icon from '../components/Icon'
 import { SUBJECTS, msgError } from '../lib/format'
@@ -8,14 +9,14 @@ export function Frame({ children }) {
   return <main className="auth-layout"><section className="auth-story"><a href="/" className="brand" aria-label="Linkedu, inicio"><Isotipo className="h-10" /><span>Linkedu<span className="text-electric">.</span><small>LA RED QUE EDUCA</small></span></a><div className="auth-story-content"><p className="eyebrow"><span className="status-dot" />UN ESPACIO. MUCHAS POSIBILIDADES.</p><h1>La educación<br />avanza cuando<br /><span>conectamos.</span></h1><p className="auth-description">Encuentra a tu gente. Comparte lo que sabes.<br className="hidden sm:block" /> Da forma a lo que viene.</p><div className="connection-art" aria-hidden="true"><svg viewBox="0 0 480 140"><path d="M40 90C140 90 120 35 230 35S330 110 440 80" /><circle cx="40" cy="90" r="8" /><circle cx="230" cy="35" r="11" /><circle cx="440" cy="80" r="8" /></svg><span className="connection-label node-one">Una idea</span><span className="connection-label node-two"><Icon name="spark" size={16} />Una conexión</span><span className="connection-label node-three">Un nuevo comienzo</span></div><div className="auth-audiences">{ROLES.map(([key, label, icon, description]) => <div key={key}><Icon name={icon} /><b>{label}</b><p>{description}</p></div>)}</div></div><p className="auth-caption">Proyectos compartidos. Aprendizaje sin fronteras.</p></section><section className="auth-form-area"><div className="auth-theme"><ThemeSwitch compact /></div><div className="panel auth-form-card">{children}</div><p className="auth-form-foot"><Icon name="lock" size={14} />Tu espacio para aprender y colaborar.</p></section></main>
 }
 export function ResetPassword() {
-  const { updatePassword, signOut } = useAuth()
+  const { updatePassword, signOut } = useAuth(), toast = useToast()
   const [pw, setPw] = useState(''), [pw2, setPw2] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const submit = async event => {
     event.preventDefault(); if (busy) return; setError('')
     if (pw.length < 6) return setError('La contraseña debe tener al menos 6 caracteres.')
     if (pw !== pw2) return setError('Las contraseñas no coinciden.')
     setBusy(true)
-    try { const result = await updatePassword(pw); if (result.error) throw result.error }
+    try { const result = await updatePassword(pw); if (result.error) throw result.error; toast('Contraseña actualizada. Ya puedes seguir en tu espacio.') }
     catch (err) { setError(msgError(err)) } finally { setBusy(false) }
   }
   return <Frame><form onSubmit={submit}><p className="eyebrow">Vuelve a tu espacio</p><h2 className="h1 mt-3">Nueva contraseña</h2><fieldset disabled={busy}><label className="lbl" htmlFor="p1">Contraseña nueva</label><input id="p1" type="password" className="input" value={pw} onChange={e => setPw(e.target.value)} autoComplete="new-password" minLength={6} required /><label className="lbl" htmlFor="p2">Repítela</label><input id="p2" type="password" className="input" value={pw2} onChange={e => setPw2(e.target.value)} autoComplete="new-password" required /><FormError>{error}</FormError><button className="btn mt-5 w-full">{busy ? 'Guardando…' : 'Guardar contraseña'}</button><button type="button" className="link mt-4 text-sm" onClick={() => signOut().catch(err => setError(msgError(err)))}>Volver al acceso</button></fieldset></form></Frame>

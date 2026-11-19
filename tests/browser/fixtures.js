@@ -12,7 +12,7 @@ export async function mockBackend(page, { signedIn = true, role = 'docente' } = 
     { id: '30000000-0000-4000-8000-000000000001', title: 'El aula como laboratorio', description: 'Una guía práctica para despertar la curiosidad científica con materiales cotidianos.', subject_area: 'Ciencias', education_level: 'ESO', resource_type: 'external_link', link_url: 'https://example.org/recurso', owner_id: ids.me, owner: me, created_at: timestamp, tags: ['ABP', 'Docentes'] },
     { id: '30000000-0000-4000-8000-000000000002', title: 'Ideas que se programan', description: 'Retos de pensamiento computacional para crear en equipo.', subject_area: 'Tecnología', education_level: 'Primaria', resource_type: 'file', file_path: `${ids.ana}/retos.pdf`, file_size: 131072, owner_id: ids.ana, owner: ana, created_at: timestamp, tags: ['Scratch'] },
   ]
-  const state = { me, people: [me, ana, pablo], projects, resources, requests: [], errors: {}, delays: {}, threads: {} }
+  const state = { me, people: [me, ana, pablo], projects, resources, requests: [], errors: {}, delays: {}, threads: {}, members: null, topics: [] }
   const token = `${btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))}.${btoa(JSON.stringify({ sub: ids.me, role: 'authenticated', exp: 4102444800 }))}.test-signature`
   if (signedIn) await page.addInitScript(({ me, token }) => {
     localStorage.setItem('sb-linkedu-tests-auth-token', JSON.stringify({ access_token: token, refresh_token: 'test-refresh', token_type: 'bearer', expires_at: 4102444800, expires_in: 3600, user: { id: me.id, email: 'lucia@example.org', app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '2026-01-01T00:00:00Z' } }))
@@ -22,6 +22,7 @@ export async function mockBackend(page, { signedIn = true, role = 'docente' } = 
       const data = JSON.parse(String(raw))
       const array = Array.isArray(data)
       const [joinRef, ref, topic, event] = array ? data : [null, data.ref, data.topic, data.event]
+      if (event === 'phx_join') state.topics.push(topic)
       if (event === 'phx_join' || event === 'heartbeat' || event === 'phx_leave') {
         const payload = { status: 'ok', response: { postgres_changes: [] } }
         socket.send(JSON.stringify(array ? [joinRef, ref, topic, 'phx_reply', payload] : { ref, topic, event: 'phx_reply', payload }))
@@ -57,7 +58,7 @@ export async function mockBackend(page, { signedIn = true, role = 'docente' } = 
       if (q.includes('inexistente')) rows = []
       return result(rows.slice(Number(url.searchParams.get('offset') || 0), Number(url.searchParams.get('offset') || 0) + Number(url.searchParams.get('limit') || 1000)))
     }
-    if (table === 'project_members') return result([{ id: '40000000-0000-4000-8000-000000000001', user_id: ids.me, status: 'aceptado', profile: me, project_id: ids.project, joined_at: timestamp }, { id: '40000000-0000-4000-8000-000000000002', user_id: ids.ana, status: 'pendiente', profile: ana, project_id: ids.project, joined_at: timestamp }])
+    if (table === 'project_members') return result(state.members || [{ id: '40000000-0000-4000-8000-000000000001', user_id: ids.me, status: 'aceptado', profile: me, project_id: ids.project, joined_at: timestamp }, { id: '40000000-0000-4000-8000-000000000002', user_id: ids.ana, status: 'pendiente', profile: ana, project_id: ids.project, joined_at: timestamp }])
     if (table === 'project_posts') return result([{ id: '50000000-0000-4000-8000-000000000001', content: '¡Ya tenemos las primeras semillas! ¿Compartimos los avances esta semana?', author: me, created_at: timestamp }])
     if (table === 'resources') {
       if (method === 'POST') return result([{ ...request.postDataJSON(), id: resources[0].id }])

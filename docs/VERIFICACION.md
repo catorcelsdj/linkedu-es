@@ -5,8 +5,8 @@ Comprobaciones realizadas el 19 de noviembre de 2026, sobre el código entregado
 | Comprobación | Resultado |
 | --- | --- |
 | ESLint (`npm run lint`, máximo 0 avisos) | Correcto: 0 errores y 0 avisos |
-| Pruebas de lógica y PostgreSQL (`npm test`) | 16 aprobadas, 0 fallidas |
-| Pruebas de navegador (`npm run test:e2e`) | 11 aprobadas, 0 fallidas, 0 omitidas, 0 reintentos |
+| Pruebas de lógica y PostgreSQL (`npm test`) | 18 aprobadas, 0 fallidas |
+| Pruebas de navegador (`npm run test:e2e`) | 14 aprobadas, 0 fallidas, 0 omitidas, 0 reintentos |
 | Compilación de producción (`npm run build`) | Correcta, sin avisos de Vite |
 | Manifiesto y lockfile | Versiones y dependencias coinciden |
 
@@ -25,6 +25,16 @@ Comprobaciones realizadas el 19 de noviembre de 2026, sobre el código entregado
 - Ruta de mensajes del alumnado: redirige a inicio sin consultar mensajes.
 - Ancho móvil de 390 px: vistas sin desbordamiento horizontal del documento y respeto de `prefers-reduced-motion`.
 - axe con reglas WCAG 2 A/AA y 2.1 AA: 0 infracciones detectadas en el recorrido de vistas en claro, el acceso y el inicio en ambos temas, el modal y el inicio móvil oscuro. Es una comprobación automática, no una certificación de accesibilidad.
+
+## Revisión de errores (19 de noviembre de 2026)
+
+Pruebas de regresión añadidas; las tres de navegador fallan con el código anterior y pasan con el corregido:
+
+- Realtime: volver a la bandeja abre una suscripción nueva en lugar de reutilizar un canal que se estaba cerrando.
+- Modal: seleccionar texto y soltar el ratón fuera no cierra el formulario; un clic completo en el fondo sí.
+- Proyecto ajeno: la pestaña de participantes muestra un aviso en lugar de un panel vacío.
+- Fusión de mensajes con fechas en formatos distintos, fechas futuras por desfase de reloj, tamaños de fichero ausentes y fechas inválidas.
+- Auditoría axe adicional de 11 rutas en claro y oscuro, a 1440 px y 390 px: 0 infracciones y sin desbordamiento horizontal. Las comprobaciones de accesibilidad esperan a que terminen las animaciones de entrada para no medir colores a mitad de transición.
 
 ## Capturas
 

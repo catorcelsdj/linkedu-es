@@ -9,7 +9,7 @@ export function TagList({ tags }) {
 function Badge({ on, children, ...rest }) {
   return (
     <button type="button" aria-pressed={on} {...rest}
-      className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-electric bg-electric/10 text-electric dark:text-blue-300' : 'border-line text-muted hover:border-slate-400'}`}>
+      className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-electric bg-electric/10 font-semibold text-electric' : 'border-line text-muted hover:border-slate-400'}`}>
       {children}
     </button>
   )

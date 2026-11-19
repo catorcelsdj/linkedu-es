@@ -11,7 +11,9 @@ export const normalizedSearch = value => String(value || '').normalize('NFD').re
 export function mergeMessages(current, incoming) {
   const rows = new Map(current.map(row => [row.id, row]))
   for (const row of incoming) rows.set(row.id, { ...rows.get(row.id), ...row })
-  return [...rows.values()].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+  // REST and Realtime may serialise the same instant differently (Z or +00:00): compare instants first.
+  const at = row => Date.parse(row.created_at) || 0
+  return [...rows.values()].sort((a, b) => at(a) - at(b) || String(a.created_at).localeCompare(String(b.created_at)) || String(a.id).localeCompare(String(b.id)))
 }
 export const FILE_MIME = {
   pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

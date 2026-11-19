@@ -65,7 +65,7 @@ export default function Projects() {
   const close = () => { setModal(null); setSp({}) }
   const list = usePaged(async (from, to) => {
     if (scope === 'mine') {
-      return (await projects.mine(me.id)).filter(p => normalizedSearch(p.title + ' ' + p.description).includes(normalizedSearch(dq)) && tags.every(t => p.tags?.includes(t))).slice(from, to + 1)
+      return (await projects.mine(me.id)).filter(p => normalizedSearch(`${p.title || ''} ${p.description || ''}`).includes(normalizedSearch(dq)) && tags.every(t => p.tags?.includes(t))).slice(from, to + 1)
     }
     return projects.list({ q: dq, tags, from, to })
   }, [dq, scope, tags, me.id])

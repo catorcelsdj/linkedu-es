@@ -2,7 +2,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 @theme {
   --color-navy: #173c3c; --color-mint: #35c99b; --color-electric: #087a63; --color-ink: #223c40;
-  --color-muted: #607676; --color-paper: #f4f7f6; --color-line: #dce6e1; --color-surface: #fff; --color-brand: #224e4b;
+  --color-muted: #566b6b; --color-paper: #f4f7f6; --color-line: #dce6e1; --color-surface: #fff; --color-brand: #224e4b;
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif; --font-mono: ui-monospace, monospace;
 }
 :root {

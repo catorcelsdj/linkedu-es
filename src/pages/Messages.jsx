@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useMessageEvents } from '../hooks/useMessageEvents'
 import { messages, people } from '../services/api'
-import { msgError, timeAgo } from '../lib/format'
+import { UNREAD_EVENT, msgError, timeAgo } from '../lib/format'
 import { isUuid, mergeMessages } from '../lib/validation'
 import { Avatar, EmptyState, FormError, LoadingState, PageHead } from '../components/ui'
 import Icon from '../components/Icon'
@@ -14,11 +14,11 @@ function Conversation({ other, me, onChange }) {
   const [peer, setPeer] = useState(null), [thread, setThread] = useState([]), [text, setText] = useState('')
   const [loading, setLoading] = useState(true), [error, setError] = useState(''), [sendError, setSendError] = useState('')
   const [busy, setBusy] = useState(false), [older, setOlder] = useState(false), [more, setMore] = useState(false)
-  const active = useRef(true), request = useRef(0), lock = useRef(false), end = useRef(null), scroll = useRef(null), oldest = useRef(null), atBottom = useRef(true), olderLock = useRef(false)
+  const active = useRef(true), request = useRef(0), lock = useRef(false), end = useRef(null), scroll = useRef(null), oldest = useRef(null), atBottom = useRef(true), olderLock = useRef(false), box = useRef(null)
   const invalidate = useCallback(() => { active.current = false; request.current++ }, [])
   const read = useCallback(async () => {
     if (document.hidden) return
-    try { await messages.markRead(me.id, other); if (active.current) onChange() }
+    try { await messages.markRead(me.id, other); window.dispatchEvent(new Event(UNREAD_EVENT)); if (active.current) onChange() }
     catch (err) { if (active.current) setSendError(`No se ha podido marcar la lectura. ${msgError(err)}`) }
   }, [me.id, other, onChange])
   const load = useCallback(async () => {
@@ -65,7 +65,7 @@ function Conversation({ other, me, onChange }) {
       const row = await messages.send(me.id, other, text.trim())
       onChange()
       if (!active.current) return
-      atBottom.current = true; setThread(current => mergeMessages(current, [row])); setText('')
+      atBottom.current = true; setThread(current => mergeMessages(current, [row])); setText(''); box.current?.focus()
     } catch (err) { if (active.current) setSendError(msgError(err)) }
     finally { lock.current = false; if (active.current) setBusy(false) }
   }
@@ -78,7 +78,7 @@ function Conversation({ other, me, onChange }) {
         {!thread.length && <EmptyState compact icon="chat" title="Todo empieza con un hola" text="Preséntate y cuenta qué te gustaría hacer en equipo." />}
         {thread.map(row => <div key={row.id} className={`flex ${row.sender_id === me.id ? 'justify-end' : ''}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${row.sender_id === me.id ? 'rounded-br-sm bg-[#176b57] text-white' : 'rounded-bl-sm border border-line bg-slate-50'}`}><p className="whitespace-pre-wrap break-words">{row.content}</p><p className={`mt-2 text-[10px] ${row.sender_id === me.id ? 'text-[#c7e7da]' : 'text-muted'}`}>{timeAgo(row.created_at)}{row.sender_id === me.id && row.read_at && ' · Leído'}</p></div></div>)}<div ref={end} />
       </div>
-      {peer && <form onSubmit={send} className="border-t border-line p-4"><label htmlFor="msg" className="sr-only">Mensaje</label><textarea id="msg" rows={2} maxLength={2000} className="input" disabled={busy} value={text} onChange={event => setText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !event.nativeEvent.isComposing) send(event) }} placeholder="Comparte una idea…" /><FormError>{sendError}</FormError><div className="mt-3 flex items-center justify-between gap-2"><span className="text-[10px] text-muted">Ctrl / ⌘ + Intro · {text.length}/2000</span><button className="btn" disabled={busy || !text.trim()}>{busy ? 'Enviando…' : 'Enviar'}<Icon name="arrow" size={16} /></button></div></form>}
+      {peer && <form onSubmit={send} className="border-t border-line p-4"><label htmlFor="msg" className="sr-only">Mensaje</label><textarea ref={box} id="msg" rows={2} maxLength={2000} className="input" readOnly={busy} aria-busy={busy} value={text} onChange={event => setText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !event.nativeEvent.isComposing) send(event) }} placeholder="Comparte una idea…" /><FormError>{sendError}</FormError><div className="mt-3 flex items-center justify-between gap-2"><span className="text-[10px] text-muted">Ctrl / ⌘ + Intro · {text.length}/2000</span><button className="btn" disabled={busy || !text.trim()}>{busy ? 'Enviando…' : 'Enviar'}<Icon name="arrow" size={16} /></button></div></form>}
     </>}
   </section>
 }

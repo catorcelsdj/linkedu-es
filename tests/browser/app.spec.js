@@ -3,6 +3,8 @@ import AxeBuilder from '@axe-core/playwright'
 import { mockBackend, ids } from './fixtures.js'
 const noOverflow = async page => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 const accessible = async page => {
+  // Measure contrast once entry transitions end: a half-faded element reports blended colours.
+  await page.evaluate(() => Promise.all(document.getAnimations().filter(a => a.effect?.getComputedTiming().iterations !== Infinity).map(a => a.finished.catch(() => {}))))
   const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
   expect(result.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ target: n.target, failure: n.failureSummary })) }))).toEqual([])
 }
@@ -160,4 +162,36 @@ test('móvil: sin desbordamiento en todas las vistas y movimiento reducido', asy
   await page.screenshot({ path: 'test-results/inicio-movil.png', fullPage: true })
   await page.getByRole('switch', { name: 'Modo oscuro' }).filter({ visible: true }).click()
   await accessible(page)
+})
+test('seleccionar texto y soltar fuera del modal no descarta el formulario', async ({ page }) => {
+  await mockBackend(page)
+  await page.goto('/proyectos')
+  await page.getByRole('button', { name: 'Nuevo proyecto', exact: true }).click()
+  const title = page.getByLabel('Título', { exact: true })
+  await title.fill('Borrador importante')
+  const box = await title.boundingBox()
+  await page.mouse.move(box.x + 10, box.y + box.height / 2); await page.mouse.down()
+  await page.mouse.move(5, 5, { steps: 5 }); await page.mouse.up()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(title).toHaveValue('Borrador importante')
+  await page.mouse.click(5, 5)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+test('quien no participa ve un aviso en el equipo en lugar de un panel vacío', async ({ page }) => {
+  const state = await mockBackend(page)
+  state.members = []
+  await page.goto('/proyectos/20000000-0000-4000-8000-000000000002')
+  await expect(page.getByRole('button', { name: 'Solicitar unirme' })).toBeVisible()
+  await page.getByRole('button', { name: 'Participantes', exact: true }).click()
+  await expect(page.getByText('El equipo del proyecto solo lo ven sus participantes.')).toBeVisible()
+})
+test('volver a la bandeja abre una suscripción de Realtime nueva', async ({ page }) => {
+  const state = await mockBackend(page)
+  await page.goto('/mensajes')
+  await expect(page.getByRole('heading', { name: 'Tu bandeja' })).toBeVisible()
+  await expect.poll(() => state.topics.filter(topic => topic.includes(':inbox:')).length).toBeGreaterThan(0)
+  const before = new Set(state.topics.filter(topic => topic.includes(':inbox:'))).size
+  await page.getByRole('navigation', { name: 'Principal' }).getByRole('link', { name: 'Proyectos' }).click()
+  await page.getByRole('navigation', { name: 'Principal' }).getByRole('link', { name: 'Mensajes' }).click()
+  await expect.poll(() => new Set(state.topics.filter(topic => topic.includes(':inbox:'))).size).toBeGreaterThan(before)
 })

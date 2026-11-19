@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../services/supabaseClient'
+let sequence = 0
 export function useMessageEvents(uid, scope, handlers) {
   const ref = useRef(handlers)
   useEffect(() => { ref.current = handlers })
@@ -7,7 +8,11 @@ export function useMessageEvents(uid, scope, handlers) {
   useEffect(() => {
     if (!uid || !supabase) return
     let active = true
-    const channel = supabase.channel(`messages:${scope}:${uid}`)
+    setStatus('connecting')
+    // removeChannel() is asynchronous. A channel with the same topic stays registered while it is leaving, and
+    // supabase.channel() would return that dying instance on a quick remount (StrictMode, back-and-forth navigation),
+    // leaving the new listeners attached to a closed channel. A unique topic per subscription avoids the reuse.
+    const channel = supabase.channel(`messages:${scope}:${uid}:${++sequence}`)
     const listen = (event, filter, key) => channel.on('postgres_changes', { event, schema: 'public', table: 'messages', filter }, payload => {
       if (active) ref.current[key]?.(payload.new)
     })

@@ -10,19 +10,21 @@ export const TAGS = {
 export const MAX_TAGS = 8
 export const SOCIALS = [['linkedin', 'LinkedIn'], ['github', 'GitHub'], ['x', 'X'], ['instagram', 'Instagram']]
 export { isHttpUrl } from './validation.js'
+export const UNREAD_EVENT = 'linkedu:unread'
 export const ROLE_LABEL = { docente: 'Docente', alumno: 'Alumno', empresa: 'Empresa' }
 
 const rtf = new Intl.RelativeTimeFormat('es', { numeric: 'auto' })
 export function timeAgo(iso) {
   const s = (new Date(iso) - Date.now()) / 1000, a = Math.abs(s)
   if (!iso || !Number.isFinite(s)) return 'Fecha no disponible'
-  if (a < 45) return 'hace un momento'
+  // Server time can be slightly ahead of the device clock: a new item is never "in 2 minutes".
+  if (a < 45 || s > 0) return 'hace un momento'
   for (const [lim, unit, div] of [[3600, 'minute', 60], [86400, 'hour', 3600], [2592000, 'day', 86400], [31536000, 'month', 2592000], [Infinity, 'year', 31536000]])
     if (a < lim) return rtf.format(Math.round(s / div), unit)
 }
-export const fullDate = iso => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+export const fullDate = iso => { const d = new Date(iso); return iso && Number.isFinite(d.getTime()) ? d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : 'fecha no disponible' }
 export const initials = n => (n || '?').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
-export const fileSize = b => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB')
+export const fileSize = b => !Number.isFinite(b) || b <= 0 ? 'tamaño desconocido' : b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'
 export const greeting = () => { const h = new Date().getHours(); return h < 13 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches' }
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 

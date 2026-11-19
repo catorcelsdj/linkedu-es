@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createApi } from '../../src/services/dataApi.js'
 import { isHttpUrl, isUuid, searchTerm, mergeMessages, validateFile } from '../../src/lib/validation.js'
-import { msgError, timeAgo } from '../../src/lib/format.js'
+import { fileSize, fullDate, msgError, timeAgo } from '../../src/lib/format.js'
 const uid = '10000000-0000-4000-8000-000000000001'
 
 test('los enlaces rechazan esquemas ejecutables, credenciales y texto inválido', () => {
@@ -21,6 +21,16 @@ test('mensajes de Realtime y respuesta al envío se fusionan sin duplicarse', ()
   const merged = mergeMessages([late, early], [{ ...late, read_at: '2026-01-03T00:00:00Z' }])
   assert.deepEqual(merged.map(row => row.id), ['1', '2'])
   assert.ok(merged[1].read_at)
+})
+test('mensajes con formatos de fecha distintos (REST y Realtime) se ordenan por instante', () => {
+  const merged = mergeMessages([{ id: 'b', created_at: '2026-01-01T10:00:00.500+00:00' }], [{ id: 'a', created_at: '2026-01-01T09:59:59Z' }, { id: 'c', created_at: '2026-01-01T11:00:00+01:00' }])
+  assert.deepEqual(merged.map(row => row.id), ['a', 'c', 'b'])
+})
+test('fechas futuras por desfase de reloj, tamaños ausentes y fechas inválidas', () => {
+  assert.equal(timeAgo(new Date(Date.now() + 5 * 60000).toISOString()), 'hace un momento')
+  assert.equal(fileSize(null), 'tamaño desconocido')
+  assert.equal(fileSize(1572864), '1,5 MB')
+  assert.equal(fullDate('no-es-fecha'), 'fecha no disponible')
 })
 test('archivos vacíos, tipos no soportados y límites producen errores útiles', () => {
   assert.throws(() => validateFile({ name: 'a.pdf', size: 0 }), /vacío/)

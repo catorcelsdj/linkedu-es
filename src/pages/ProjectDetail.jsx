@@ -56,7 +56,7 @@ export default function ProjectDetail() {
     <header className="mb-6 mt-3 border-b border-line pb-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0"><h1 className="h1">{p.title}</h1>
-          <p className="mt-1 text-sm text-muted">Responsable: <Link className="hover:underline" to={`/docentes/${p.owner?.id}`}>{p.owner?.full_name}</Link>. Creado el {fullDate(p.created_at)}. {p.is_public ? 'Proyecto abierto.' : 'Proyecto privado.'}</p></div>
+          <p className="mt-1 text-sm text-muted">Responsable: {p.owner?.id ? <Link className="hover:underline" to={`/docentes/${p.owner.id}`}>{p.owner.full_name}</Link> : 'no disponible'}. Creado el {fullDate(p.created_at)}. {p.is_public ? 'Proyecto abierto.' : 'Proyecto privado.'}</p></div>
         <div className="flex items-center gap-3">
           {!isMember && !mem && me.role !== 'empresa' && p.is_public && <button className="btn" disabled={busy} onClick={() => act(() => projects.request(id, me.id), 'Solicitud enviada')}>Solicitar unirme</button>}
           {mem?.status === 'pendiente' && <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">Solicitud pendiente de respuesta</span>}
@@ -70,7 +70,7 @@ export default function ProjectDetail() {
     </header>
 
     <div role="group" aria-label="Secciones del proyecto" className="mb-4 flex gap-6 border-b border-line">
-      {[['actividad', `Actividad (${posts.length})`], ['personas', `Participantes (${accepted.length})`]].map(([k, l]) => (
+      {[['actividad', isMember ? `Actividad (${posts.length >= 100 ? '100+' : posts.length})` : 'Actividad'], ['personas', isMember ? `Participantes (${accepted.length})` : 'Participantes']].map(([k, l]) => (
         <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)} className={`-mb-px cursor-pointer border-b-2 pb-2 text-sm font-semibold ${tab === k ? 'border-mint text-navy' : 'border-transparent text-muted'}`}>{l}</button>))}
     </div>
 
@@ -101,11 +101,11 @@ export default function ProjectDetail() {
             <button className="btn" disabled={busy} onClick={() => act(() => projects.accept(m.id), 'Participante aceptado')}>Aceptar</button>
             <button className="danger" disabled={busy} onClick={() => act(() => projects.removeMember(m.id), 'Solicitud rechazada')}>Rechazar</button>
           </div>))}</div></section>)}
-      <div className="panel">{accepted.map(m => (
+      {!isMember ? <p className="panel px-4 py-6 text-sm text-muted">El equipo del proyecto solo lo ven sus participantes.</p> : <div className="panel">{accepted.map(m => (
         <div key={m.id} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
           <Avatar name={m.profile?.full_name} role={m.profile?.role} src={m.profile?.avatar_url} /><div className="min-w-0 flex-1 text-sm">{who(m)}<div className="text-xs text-muted">{m.user_id === p.owner_id ? 'Responsable' : 'Participante'}{m.profile?.subject_area && `, ${m.profile.subject_area}`}</div></div>
           {mine && m.user_id !== me.id && <button className="danger" disabled={busy} onClick={async () => await confirm('¿Quitar a esta persona del proyecto?', 'Quitar participante') && act(() => projects.removeMember(m.id), 'Participante eliminado')}>Quitar</button>}
-        </div>))}</div>
+        </div>))}</div>}
     </>)}
   </>)
 }

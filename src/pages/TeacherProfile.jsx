@@ -29,7 +29,7 @@ export default function TeacherProfile() {
 
   if (error) return <div className="notice notice-error" role="alert">{error}<button className="btn btn-s mt-4 block" onClick={() => setRetry(n => n + 1)}>Reintentar</button></div>
   if (d === undefined) return <LoadingState />
-  if (d === null) return <div><h1 className="h1">Perfil no disponible</h1><p className="mt-2 text-muted">No existe o no es visible para ti.</p></div>
+  if (d === null) return <div><Link to="/" className="link text-sm">Volver a inicio</Link><h1 className="h1 mt-4">Perfil no disponible</h1><p className="mt-2 text-muted">No existe o no es visible para ti.</p></div>
   const { p, rs, ps } = d
   const where = [p.center, p.city].filter(Boolean).join(', ')
   const web = isHttpUrl(p.website) ? p.website : null
@@ -53,7 +53,7 @@ export default function TeacherProfile() {
       <section className="mt-10"><h2 className="h2 mb-2">Proyectos que lidera</h2>
         <div className="panel">{ps.length ? ps.map(x => <Link key={x.id} to={`/proyectos/${x.id}`} className="block border-b border-line px-4 py-3 text-sm last:border-b-0 hover:bg-slate-50"><b className="text-navy">{x.title}</b><span className="line-clamp-1 block text-xs text-muted">{x.description}</span></Link>) : <EmptyState compact icon="projects" title="Sin proyectos visibles" />}</div></section>
       <section className="mt-8"><h2 className="h2 mb-2">Recursos publicados</h2>
-        <div className="grid gap-4 sm:grid-cols-2">{rs.length ? rs.map(r => <ResourceCard key={r.id} r={r} uid={me.id} onOpen={openRes} />) : <EmptyState compact icon="resources" title="Todavía no ha publicado recursos" />}</div></section>
+        <div className="grid gap-4 sm:grid-cols-2">{rs.length ? rs.map(r => <ResourceCard key={r.id} r={r} uid={me.id} onOpen={openRes} />) : <div className="panel sm:col-span-2"><EmptyState compact icon="resources" title="Todavía no ha publicado recursos" /></div>}</div></section>
     </>)}
   </>)
 }
