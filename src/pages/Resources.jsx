@@ -127,7 +127,7 @@ export default function Resources() {
       {me.role === 'docente' && <button className="btn" onClick={() => setOpen(true)}><Icon name="plus" size={17} />Compartir recurso</button>}
     </PageHead>
     <div className="filter-bar">
-      <input className="input max-w-xs flex-1" type="search" placeholder="Buscar (sin preocuparte por las tildes)" aria-label="Buscar recursos" value={q} onChange={e => setQ(e.target.value)} />
+      <input className="input max-w-xs flex-1" type="search" placeholder="Buscar por título o descripción" aria-label="Buscar recursos" value={q} onChange={e => setQ(e.target.value)} />
       <select className="input w-auto" aria-label="Asignatura" value={subject} onChange={e => setSubject(e.target.value)}><option value="">Todas las asignaturas</option>{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
       <select className="input w-auto" aria-label="Etapa" value={level} onChange={e => setLevel(e.target.value)}><option value="">Todas las etapas</option>{LEVELS.map(s => <option key={s}>{s}</option>)}</select>
     </div>
