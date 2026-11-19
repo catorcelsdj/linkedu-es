@@ -1,0 +1,163 @@
+import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
+import { mockBackend, ids } from './fixtures.js'
+const noOverflow = async page => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+const accessible = async page => {
+  const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
+  expect(result.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ target: n.target, failure: n.failureSummary })) }))).toEqual([])
+}
+test('entrada, registro, recuperación y tema persistente sin errores de consola', async ({ page }) => {
+  const state = await mockBackend(page, { signedIn: false }), errors = []
+  page.on('pageerror', e => errors.push(e.message))
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Tu comunidad te espera.' })).toBeVisible()
+  await page.getByRole('button', { name: 'Entrar a mi espacio' }).click()
+  expect(state.requests.filter(r => r.table === 'token')).toHaveLength(0)
+  await accessible(page)
+  await page.getByRole('heading', { name: 'Tu comunidad te espera.' }).click()
+  await page.screenshot({ path: 'test-results/acceso-claro.png', fullPage: true })
+  await page.getByRole('switch', { name: 'Modo oscuro' }).click()
+  await page.reload()
+  await expect(page.locator('html')).toHaveClass('dark')
+  await accessible(page)
+  await page.screenshot({ path: 'test-results/acceso-oscuro.png', fullPage: true })
+  await page.getByRole('button', { name: 'Crea tu cuenta' }).click()
+  await page.getByRole('radio', { name: 'Alumno', exact: true }).check()
+  await expect(page.getByText('Tengo 14 años o más', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Volver a entrar' }).click()
+  await page.getByRole('button', { name: 'He olvidado mi contraseña' }).click()
+  await page.getByLabel('Correo electrónico').fill('docente@example.org')
+  await page.getByRole('button', { name: 'Enviar enlace' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'recibirás un enlace' })).toBeVisible()
+  expect(errors).toEqual([])
+})
+test('errores de esquema se muestran con reintento y no como un formulario de acceso', async ({ page }) => {
+  const state = await mockBackend(page)
+  state.errors.profiles = { code: '42703', message: 'column center does not exist' }
+  await page.goto('/')
+  await expect(page.getByRole('alert')).toContainText('migraciones 001 a 004')
+  await expect(page.getByRole('button', { name: 'Entrar a mi espacio' })).toHaveCount(0)
+  delete state.errors.profiles
+  await page.getByRole('button', { name: 'Reintentar', exact: true }).click()
+  await expect(page.getByRole('heading', { name: /Lucía/ })).toBeVisible()
+})
+test('todas las vistas cargan y el inicio es accesible en claro y oscuro', async ({ page }) => {
+  await mockBackend(page)
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  page.on('console', message => { if (message.type() === 'error' || message.type() === 'warning') errors.push(message.text()) })
+  for (const [path, heading] of [['/', /Lucía/], ['/proyectos', 'Proyectos'], ['/recursos', 'Banco de recursos'], ['/docentes', 'Directorio de docentes'], ['/perfil', 'Mi perfil'], [`/proyectos/${ids.project}`, 'Un huerto, mil aprendizajes'], [`/docentes/${ids.ana}`, 'Ana García'], ['/mensajes', 'Conversaciones que conectan']]) {
+    await page.goto(path)
+    await expect(page.getByRole('heading', { name: heading, exact: typeof heading === 'string' })).toBeVisible()
+    await noOverflow(page)
+    await accessible(page)
+    if (path === '/proyectos') await page.screenshot({ path: 'test-results/proyectos.png', fullPage: true })
+  }
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: /Lucía/ })).toBeVisible()
+  await expect(page.locator('.metric strong').first()).toHaveText('12')
+  await accessible(page)
+  await page.screenshot({ path: 'test-results/inicio-claro.png', fullPage: true })
+  await page.getByRole('switch', { name: 'Modo oscuro' }).filter({ visible: true }).click()
+  await accessible(page)
+  await page.screenshot({ path: 'test-results/inicio-oscuro.png', fullPage: true })
+  expect(errors).toEqual([])
+})
+test('modal atrapa el foco, Escape lo devuelve al disparador y crear navega al proyecto', async ({ page }) => {
+  await mockBackend(page)
+  await page.goto('/proyectos')
+  const trigger = page.getByRole('button', { name: 'Nuevo proyecto', exact: true })
+  await trigger.click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await accessible(page)
+  for (let i = 0; i < 10; i++) { await page.keyboard.press('Tab'); expect(await page.evaluate(() => !!document.activeElement?.closest('dialog'))).toBe(true) }
+  await page.keyboard.press('Escape')
+  await expect(trigger).toBeFocused()
+  await trigger.click()
+  await page.getByLabel('Título', { exact: true }).fill('Proyecto de prueba')
+  await page.getByRole('button', { name: 'Crear proyecto', exact: true }).click()
+  await expect(page).toHaveURL(`/proyectos/${ids.project}`)
+  await expect(page.getByText('LK-ABC1234', { exact: true })).toBeVisible()
+})
+test('búsquedas rápidas descartan respuestas antiguas', async ({ page }) => {
+  const state = await mockBackend(page)
+  state.delays.projects = url => url.searchParams.get('or')?.includes('antiguo') ? 900 : 10
+  await page.goto('/proyectos')
+  const search = page.getByRole('searchbox', { name: 'Buscar proyectos' })
+  await search.fill('antiguo')
+  await page.waitForRequest(request => request.url().includes('antiguo'))
+  await search.fill('nuevo')
+  await expect(page.getByRole('link', { name: 'Resultado nuevo', exact: true })).toBeVisible()
+  await page.waitForTimeout(1000)
+  await expect(page.getByRole('link', { name: 'Resultado antiguo', exact: true })).toHaveCount(0)
+})
+test('un fallo al cargar recursos permite reintentar y no muestra un falso vacío', async ({ page }) => {
+  const state = await mockBackend(page)
+  state.errors.resources = { message: 'Failed to fetch' }
+  await page.goto('/recursos')
+  await expect(page.getByRole('alert')).toContainText('conexión')
+  await expect(page.getByText('El banco está vacío')).toHaveCount(0)
+  delete state.errors.resources
+  await page.getByRole('button', { name: 'Reintentar' }).click()
+  await expect(page.getByRole('heading', { name: 'El aula como laboratorio' })).toBeVisible()
+})
+test('perfil guarda centro, ciudad, etapas y mantiene el error de contraseña recuperable', async ({ page }) => {
+  const state = await mockBackend(page)
+  await page.goto('/perfil')
+  await page.getByLabel('Centro educativo', { exact: true }).fill('Centro nuevo')
+  await page.getByLabel('Ciudad', { exact: true }).fill('Bilbao')
+  await page.getByRole('checkbox', { name: 'FP', exact: true }).check()
+  await page.getByRole('button', { name: 'Guardar cambios' }).click()
+  await expect(page.getByText('Perfil guardado', { exact: true })).toBeVisible()
+  expect(state.me.center).toBe('Centro nuevo'); expect(state.me.city).toBe('Bilbao'); expect(state.me.education_levels).toContain('FP')
+  state.errors.user = { message: 'Failed to fetch' }
+  await page.getByLabel('Contraseña nueva').fill('nueva-segura')
+  await page.getByRole('button', { name: 'Actualizar contraseña' }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'conexión' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Actualizar contraseña' })).toBeEnabled()
+})
+test('cambiar de destinatario no mezcla respuestas tardías y Ctrl+Intro no duplica envíos', async ({ page }) => {
+  const state = await mockBackend(page)
+  state.delays.messages = url => url.searchParams.get('or')?.includes(ids.ana) ? 700 : 50
+  await page.goto(`/mensajes/${ids.ana}`)
+  await page.getByRole('link').filter({ hasText: 'Pablo Ruiz' }).click()
+  await expect(page.getByText('Hola, soy Pablo', { exact: true })).toBeVisible()
+  await page.waitForTimeout(850)
+  await expect(page.getByText('Hola, soy Ana', { exact: true })).toHaveCount(0)
+  state.delays.messages = 400
+  await page.getByRole('textbox', { name: 'Mensaje', exact: true }).fill('Mensaje de prueba')
+  await page.keyboard.press('Control+Enter'); await page.keyboard.press('Control+Enter')
+  await expect(page.getByText('Mensaje de prueba', { exact: true })).toBeVisible()
+  const sent = state.requests.filter(request => request.table === 'messages' && request.method === 'POST')
+  expect(sent).toHaveLength(1); expect(sent[0].body.receiver_id).toBe(ids.pablo)
+})
+test('el historial muestra lo reciente y permite recuperar mensajes anteriores', async ({ page }) => {
+  const state = await mockBackend(page)
+  state.threads[ids.ana] = Array.from({ length: 260 }, (_, index) => ({ id: `60000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`, sender_id: ids.ana, receiver_id: ids.me, content: `Historial ${index + 1}`, created_at: new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString(), read_at: '2026-11-18T00:00:00Z' }))
+  await page.goto(`/mensajes/${ids.ana}`)
+  await expect(page.getByText('Historial 260', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Ver mensajes anteriores' }).click()
+  await expect(page.getByText('Historial 161', { exact: true })).toBeAttached()
+  await expect(page.getByText('Historial 260', { exact: true })).toBeAttached()
+})
+test('alumnado no accede a mensajes ni al directorio', async ({ page }) => {
+  const state = await mockBackend(page, { role: 'alumno' })
+  await page.goto('/mensajes')
+  await expect(page).toHaveURL('/')
+  await expect(page.getByRole('navigation', { name: 'Principal' }).getByRole('link', { name: 'Mensajes' })).toHaveCount(0)
+  expect(state.requests.filter(request => ['messages','message_conversations'].includes(request.table))).toHaveLength(0)
+})
+test('móvil: sin desbordamiento en todas las vistas y movimiento reducido', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await mockBackend(page)
+  for (const path of ['/', '/proyectos', '/recursos', '/docentes', '/perfil', `/mensajes/${ids.ana}`, `/proyectos/${ids.project}`]) {
+    await page.goto(path); await expect(page.locator('main h1')).toBeVisible(); await noOverflow(page)
+  }
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: /Lucía/ })).toBeVisible()
+  expect(await page.locator('.page-enter').evaluate(node => getComputedStyle(node).animationName)).toBe('none')
+  await page.screenshot({ path: 'test-results/inicio-movil.png', fullPage: true })
+  await page.getByRole('switch', { name: 'Modo oscuro' }).filter({ visible: true }).click()
+  await accessible(page)
+})

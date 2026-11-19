@@ -1,0 +1,83 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { PGlite } from '@electric-sql/pglite'
+const teacher = '10000000-0000-4000-8000-000000000001', student = '10000000-0000-4000-8000-000000000002', other = '10000000-0000-4000-8000-000000000003', company = '10000000-0000-4000-8000-000000000004'
+test('migraciones y políticas con PostgreSQL local (sin modificar Supabase)', async t => {
+  const db = new PGlite()
+  try {
+    await db.exec(`create role anon; create role authenticated; create schema auth; create schema storage;
+      create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+      grant usage on schema auth to authenticated,anon;
+      create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb);
+      create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+      create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text);
+      alter table storage.objects enable row level security;
+      create function storage.foldername(name text) returns text[] language sql as $$ select string_to_array(name,'/') $$;
+      create publication supabase_realtime;`)
+    for (const file of ['001_schema_inicial.sql', '002_mejoras.sql', '003_etiquetas_avatares_realtime.sql']) await db.exec(await readFile(new URL(`../../supabase/migrations/${file}`, import.meta.url), 'utf8'))
+    for (const [id, role] of [[teacher,'docente'], [student,'alumno'], [other,'docente'], [company,'empresa']]) await db.query('insert into auth.users values($1,$2,$3)', [id, `${role}-${id}@example.org`, { role, full_name: role }])
+    const old = (await db.query("insert into projects(owner_id,title,invite_code) values($1,'Proyecto existente','LK-OLD1') returning id", [teacher])).rows[0].id
+    const migration = await readFile(new URL('../../supabase/migrations/004_estabilidad_y_permisos.sql', import.meta.url), 'utf8')
+    await db.exec(migration)
+    const as = async id => { await db.exec('reset role'); await db.query("select set_config('request.jwt.claim.sub',$1,false)", [id]); await db.exec('set role authenticated') }
+    await t.test('la migración repara responsables ausentes y se puede repetir', async () => {
+      assert.equal((await db.query('select status from project_members where project_id=$1 and user_id=$2', [old, teacher])).rows[0].status, 'aceptado')
+      await db.exec(migration)
+      assert.equal((await db.query('select count(*)::int as n from project_members where project_id=$1', [old])).rows[0].n, 1)
+    })
+    let pid, invitation
+    await t.test('crear proyecto añade al responsable de forma atómica y permite publicar', async () => {
+      await as(teacher)
+      pid = (await db.query("select create_project('Proyecto privado','Descripción',false,'{}') as id")).rows[0].id
+      assert.equal((await db.query('select count(*)::int as n from project_members where project_id=$1', [pid])).rows[0].n, 1)
+      invitation = (await db.query('select project_invite_code($1) as code', [pid])).rows[0].code
+      await db.query("insert into project_posts(project_id,author_id,content) values($1,$2,'Hola equipo')", [pid, teacher])
+      await assert.rejects(db.query('select invite_code from projects'), /permission denied/)
+      await assert.rejects(db.query('select email from profiles'), /permission denied/)
+      assert.equal((await db.query('select center,city,education_levels from profiles where id=$1', [teacher])).rows.length, 1)
+    })
+    await t.test('un ajeno no ve proyectos privados ni sus invitaciones', async () => {
+      await as(other)
+      assert.equal((await db.query('select id from projects where id=$1', [pid])).rows.length, 0)
+      await assert.rejects(db.query('select project_invite_code($1)', [pid]), /participantes/)
+      await assert.rejects(db.query('select project_invite_code($1)', [old]), /participantes/)
+      assert.equal((await db.query('select id from profiles where id=$1', [student])).rows.length, 0)
+    })
+    await t.test('alumno con código entra; una solicitud pendiente no ve actividad', async () => {
+      await as(student)
+      await assert.rejects(db.query("select create_project('No permitido')"), /docentes/)
+      await db.query("insert into project_members(project_id,user_id,status) values($1,$2,'pendiente')", [old, student])
+      await assert.rejects(db.query('select project_invite_code($1)', [old]), /participantes/)
+      assert.equal((await db.query('select join_project_by_code($1) as id', [invitation.toLowerCase()])).rows[0].id, pid)
+      assert.equal((await db.query('select content from project_posts where project_id=$1', [pid])).rows[0].content, 'Hola equipo')
+      await as(teacher)
+      assert.equal((await db.query('select full_name from profiles where id=$1', [student])).rows.length, 1)
+      assert.equal((await db.query('delete from project_members where project_id=$1 and user_id=$2 returning id', [pid, teacher])).rows.length, 0)
+    })
+    let message
+    await t.test('no se envían mensajes a alumnos ni a uno mismo; solo cambia la lectura', async () => {
+      await as(teacher)
+      await assert.rejects(db.query("insert into messages(sender_id,receiver_id,content) values($1,$2,'Hola')", [teacher, student]), /row-level security/)
+      await assert.rejects(db.query("insert into messages(sender_id,receiver_id,content) values($1,$1,'Hola')", [teacher]), /row-level security/)
+      message = (await db.query("insert into messages(sender_id,receiver_id,content) values($1,$2,'Hola') returning id", [teacher, other])).rows[0].id
+      await as(other)
+      await assert.rejects(db.query("update messages set content='Alterado' where id=$1", [message]), /permission denied/)
+      await db.query('update messages set read_at=now() where id=$1', [message])
+      assert.ok((await db.query('select read_at from messages where id=$1', [message])).rows[0].read_at)
+      await assert.rejects(db.query('update profiles set role=\'alumno\' where id=$1', [other]), /tipo de cuenta/)
+    })
+    await t.test('la bandeja conserva contactos antiguos con más de 300 mensajes y cuenta todos los no leídos', async () => {
+      await as(teacher)
+      await db.query("insert into messages(sender_id,receiver_id,content,created_at) values($1,$2,'Contacto antiguo',now()-interval '2 days')", [teacher, company])
+      await db.query("insert into messages(sender_id,receiver_id,content) select $1,$2,'Mensaje ' || n from generate_series(1,310) n", [teacher, other])
+      const inbox = (await db.query('select * from message_conversations()')).rows
+      assert.equal(inbox.length, 2)
+      assert.ok(inbox.some(row => row.id === company))
+      await as(other)
+      assert.equal(Number((await db.query('select * from message_conversations()')).rows[0].unread), 310)
+      await as(company)
+      await assert.rejects(db.query('select join_project_by_code($1)', [invitation]), /rol/)
+    })
+  } finally { await db.close() }
+})
