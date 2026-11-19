@@ -48,7 +48,8 @@ export async function mockBackend(page, { signedIn = true, role = 'docente' } = 
       const id = url.searchParams.get('id')?.replace('eq.', '')
       if (method === 'PATCH') { Object.assign(me, request.postDataJSON()); return result([me]) }
       const role = url.searchParams.get('role')?.replace('eq.', '')
-      return result(id ? state.people.filter(person => person.id === id) : state.people.filter(person => !role || person.role === role))
+      const list = id?.startsWith('in.(') ? id.slice(4, -1).split(',') : null
+      return result(list ? state.people.filter(person => list.includes(person.id)) : id ? state.people.filter(person => person.id === id) : state.people.filter(person => !role || person.role === role))
     }
     if (table === 'projects') {
       if (method === 'DELETE') return result([{ id: ids.project }])
